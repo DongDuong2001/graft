@@ -1,0 +1,11 @@
+.git
+.idea
+.agents
+graft.exe
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+configs/*.local.env
+.env
+**/*_test.go
