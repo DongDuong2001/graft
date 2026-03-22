@@ -1,0 +1,74 @@
+# Apply secrets first (do not commit real values):
+#   kubectl create secret generic graft-secrets \
+#     --from-literal=MASTER_KEY=<64-hex-chars> \
+#     --from-literal=ADMIN_API_KEY=<your-admin-key>
+#
+# Build and push image, then set spec.template.spec.containers[0].image below.
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: graft-data
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: graft
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: graft
+  template:
+    metadata:
+      labels:
+        app: graft
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        fsGroup: 65532
+      containers:
+        - name: graft
+          image: graft:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          env:
+            - name: DB_PATH
+              value: /data/rules.db
+            - name: MASTER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: graft-secrets
+                  key: MASTER_KEY
+            - name: ADMIN_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: graft-secrets
+                  key: ADMIN_API_KEY
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 30
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: graft-data
