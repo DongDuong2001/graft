@@ -1,0 +1,147 @@
+# Graft: Self-Hosted Webhook Bridge
+
+Graft is a lightweight, secure webhook-to-anything bridge written in Go. It receives incoming webhooks, validates signatures (from providers like GitHub or Stripe), optionally transforms the payload using templates, and forwards the result to another destination. It is designed to be self-hosted and run in Docker or Kubernetes.
+
+## Features
+
+- **Ingress**: Accepts POST webhooks on `/hook/{path}`.
+- **Routing**: Matches requests based on the URL path.
+- **Security**:
+  - Validates webhook signatures (HMAC-SHA256, Stripe v1).
+  - Admin API secured by an API key.
+  - Secrets (like webhook signing keys) are encrypted at rest using AES-GCM.
+- **Transformation**: Supports `text/template` for payload modification before forwarding.
+- **Resilience**: Configurable retries and timeouts for outbound requests.
+- **Observability**: Prometheus-ready metrics endpoint (`/metrics`) and JSON structured logs.
+- **Storage**: SQLite-backed persistence for rules and delivery history.
+
+## Prerequisites
+
+- **Go 1.26+** (for local development)
+- **Docker** & **Docker Compose** (recommended for deployment)
+- **OpenSSL** (optional, for generating keys)
+
+## Configuration
+
+Graft is configured via environment variables. See [`configs/example.env`](configs/example.env) for a template.
+
+### Key Variables
+
+| Variable | Description | Required | Default |
+| :--- | :--- | :--- | :--- |
+| `MASTER_KEY` | 32-byte hex string for encryption at rest. | **Yes** | - |
+| `ADMIN_API_KEY` | Secret key for accessing the Admin API. | **Yes** | - |
+| `DB_PATH` | Path to the SQLite database file. | No | `./rules.db` |
+| `PORT` | HTTP port to listen on. | No | `8080` |
+
+### Generating a Master Key
+
+```bash
+openssl rand -hex 32
+```
+
+## Running Locally
+
+1.  **Clone the repository:**
+    ```bash
+    git clone https://github.com/your-org/graft.git
+    cd graft
+    ```
+
+2.  **Set up environment:**
+    Copy `configs/example.env` to `.env` and fill in the values.
+    ```bash
+    cp configs/example.env .env
+    # Edit .env to set MASTER_KEY and ADMIN_API_KEY
+    ```
+
+3.  **Run the application:**
+    ```bash
+    # Load env vars (e.g., using export or a tool like dotenv)
+    # On Linux/Mac:
+    export $(grep -v '^#' .env | xargs)
+    go run cmd/graft/main.go
+    ```
+    
+    *Note: Ensure `CGO_ENABLED=1` is set if running on an environment where it's not default, as SQLite requires CGO.*
+
+4.  **Verify it's running:**
+    ```bash
+    curl http://localhost:8080/healthz
+    # Output: {"status":"ok"}
+    ```
+
+## Running with Docker
+
+Use the provided `docker-compose.yml` to spin up Graft quickly.
+
+1.  **Configure `.env`:**
+    Ensure `configs/example.env` (or your `.env` file referenced in compose) has valid keys.
+
+2.  **Start the service:**
+    ```bash
+    docker-compose -f deployments/docker-compose.yml up -d --build
+    ```
+
+    The service will be available at `http://localhost:8080`. Data will be persisted in the `graft-data` volume.
+
+## API Usage
+
+### Admin API
+
+All admin endpoints are under `/api/v1/` and require the `Authorization: Bearer <ADMIN_API_KEY>` header.
+
+#### Create a Rule
+
+```bash
+curl -X POST http://localhost:8080/api/v1/rules \
+  -H "Authorization: Bearer YOUR_ADMIN_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "GitHub Push to Slack",
+    "listen_path": "/hook/github-push",
+    "required_signature": true,
+    "signature_header": "X-Hub-Signature-256",
+    "signature_format": "hex",
+    "signature_secret": "your-github-webhook-secret",
+    "destination_url": "https://hooks.slack.com/services/...",
+    "destination_method": "POST"
+  }'
+```
+
+#### List Rules
+
+```bash
+curl http://localhost:8080/api/v1/rules -H "Authorization: Bearer YOUR_ADMIN_KEY"
+```
+
+### Sending Webhooks
+
+Once a rule is created, you can send webhooks to the configured `listen_path`.
+
+```bash
+# Example for the rule above
+curl -X POST http://localhost:8080/hook/github-push \
+  -H "Content-Type: application/json" \
+  -H "X-Hub-Signature-256: sha256=generated-signature..." \
+  -d '{"ref": "refs/heads/main", ...}'
+```
+
+## Testing
+
+Run the test suite using `go test`. Note that integration tests require CGO enabled for SQLite.
+
+```bash
+go test ./...
+# For verbose output
+go test -v ./...
+```
+
+To run only unit tests (skipping tests that might require external setups or heavy DB):
+```bash
+go test -short ./...
+```
+
+## License
+
+[MIT License](LICENSE)
