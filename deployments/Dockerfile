@@ -1,5 +1,5 @@
 # Build with CGO for github.com/mattn/go-sqlite3
-FROM golang:1.24-bookworm AS builder
+FROM golang:1.26-bookworm AS builder
 
 WORKDIR /src
 ENV CGO_ENABLED=1
