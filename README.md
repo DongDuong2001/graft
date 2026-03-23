@@ -1,5 +1,7 @@
 # Graft: Self-Hosted Webhook Bridge
 
+[![CI](https://github.com/DongDuong2001/graft/actions/workflows/ci.yml/badge.svg)](https://github.com/DongDuong2001/graft/actions/workflows/ci.yml)
+
 Graft is a lightweight, secure webhook-to-anything bridge written in Go. It receives incoming webhooks, validates signatures (from providers like GitHub or Stripe), optionally transforms the payload using templates, and forwards the result to another destination. It is designed to be self-hosted and run in Docker or Kubernetes.
 
 ## Features
@@ -20,6 +22,23 @@ Graft is a lightweight, secure webhook-to-anything bridge written in Go. It rece
 - **Go 1.26+** (for local development)
 - **Docker** & **Docker Compose** (recommended for deployment)
 - **OpenSSL** (optional, for generating keys)
+- **Make** (optional, for easier commands)
+
+### Installing Make on Windows
+
+If you don't have `make` installed, you can install it via Chocolatey or Scoop:
+
+**Chocolatey:**
+```powershell
+choco install make
+```
+
+**Scoop:**
+```powershell
+scoop install make
+```
+
+Alternatively, you can run the `go` commands directly as described below.
 
 ## Configuration
 
@@ -41,6 +60,19 @@ openssl rand -hex 32
 ```
 
 ## Running Locally
+
+### Using Make
+
+If you have `make` installed, you can use the provided `Makefile` for common tasks:
+
+- `make build`: Build the binary to `bin/graft`.
+- `make run`: Run the application.
+- `make test`: Run all tests.
+- `make vet`: Run go vet.
+- `make docker-build`: Build the Docker image.
+- `make clean`: Clean build artifacts.
+
+### Manual Steps
 
 1.  **Clone the repository:**
     ```bash
@@ -145,3 +177,38 @@ go test -short ./...
 ## License
 
 [MIT License](LICENSE)
+
+## Contributing
+
+### Git Commit Convention
+
+We follow the [Conventional Commits](https://www.conventionalcommits.org/) specification for commit messages. This helps in generating changelogs and versioning.
+
+**Structure:**
+```
+<type>(<scope>): <subject>
+```
+
+**Types:**
+- `feat`: A new feature
+- `fix`: A bug fix
+- `docs`: Documentation only changes
+- `style`: Changes that do not affect the meaning of the code (white-space, formatting, missing semi-colons, etc)
+- `refactor`: A code change that neither fixes a bug nor adds a feature
+- `perf`: A code change that improves performance
+- `test`: Adding missing tests or correcting existing tests
+- `chore`: Changes to the build process or auxiliary tools and libraries such as documentation generation
+
+**Example:**
+```
+feat(auth): add JWT support for administrative API
+fix(engine): resolve null pointer exception when payload is empty
+docs: update README with deployment instructions
+```
+
+### Pull Requests
+
+Ensure all checks pass before submitting a PR:
+1. Run tests: `make test`
+2. Run linter: `make vet`
+3. Check formatting: `go fmt ./...`
