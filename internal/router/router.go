@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"Graft/internal/middleware"
+	"Graft/internal/ui"
 )
 
 // Config wires the public HTTP route tree (health, webhooks, admin API).
@@ -19,6 +20,10 @@ func NewRootMux(cfg Config) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", healthz)
 	mux.Handle("/hook/", cfg.RateLimiter.Middleware(cfg.WebhookHandler))
+
+	// Mount the embedded web UI at the root "/"
+	mux.Handle("/", ui.WebHandler())
+
 	mux.Handle("/api/v1/", middleware.AdminAuth(cfg.AdminAPIKey, http.StripPrefix("/api/v1", cfg.AdminInner)))
 	return middleware.LoggingMiddleware(mux)
 }
