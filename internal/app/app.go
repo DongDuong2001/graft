@@ -27,6 +27,8 @@ import (
 
 // Run loads configuration, wires dependencies, and blocks serving HTTP.
 func Run() error {
+	printBanner() // Welcome developers!
+
 	cfg, err := config.Load()
 	if err != nil {
 		return err
@@ -80,7 +82,12 @@ func Run() error {
 		}
 	}()
 
-	slog.Info("Server listening", "port", cfg.Port, "admin_api", "/api/v1/", "webhook_prefix", "/hook/")
+	slog.Info("Server listening", "port", cfg.Port)
+	fmt.Printf("\n🚀 Graft Webhook Bridge successfully started!\n\n")
+	fmt.Printf("   Dashboard & Health :\t http://localhost:%s/\n", cfg.Port)
+	fmt.Printf("   Admin API Base     :\t http://localhost:%s/api/v1/\n", cfg.Port)
+	fmt.Printf("   Webhook Listen Path:\t http://localhost:%s/hook/{path}\n\n", cfg.Port)
+	fmt.Printf("Use highly secure keys in production!\n\n")
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
@@ -97,4 +104,20 @@ func Run() error {
 
 	slog.Info("Server exited gracefully")
 	return nil
+}
+
+// printBanner displays the application's logo and branding.
+func printBanner() {
+	banner := `
+   _____            __ _   
+  / ____|          / _| |  
+ | |  __ _ __ __ _| |_| |_ 
+ | | |_ | '__/ _` + "`" + ` |  _| __|
+ | |__| | | | (_| | | | |_ 
+  \_____|_|  \__,_|_|  \__|
+                           
+  A Self-Hosted Webhook Bridge
+================================
+`
+	fmt.Print(banner)
 }
