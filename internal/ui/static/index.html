@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Graft Admin Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen text-gray-800 flex flex-col">
+    <!-- Navbar -->
+    <nav class="bg-indigo-600 text-white shadow-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center space-x-2">
+                    <svg class="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                    <span class="font-bold text-xl">Graft Webhook Bridge</span>
+                </div>
+                <div>
+                    <input id="apiKey" type="password" placeholder="Admin API Key" class="px-3 py-1 text-gray-800 rounded text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400">
+                    <button id="refreshBtn" onclick="loadRules()" class="ml-2 px-3 py-1 bg-indigo-500 hover:bg-indigo-400 rounded text-sm font-medium transition">Refresh</button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+        <!-- Alerts -->
+        <div id="alertBox" class="hidden mb-4 p-4 rounded text-sm"></div>
+
+        <!-- Rules Section -->
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-2xl font-semibold text-gray-700">Configured Rules</h2>
+            <button onclick="toggleModal()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded shadow transition">
+                + New Rule
+            </button>
+        </div>
+
+        <div class="bg-white shadow rounded-lg overflow-hidden">
+            <table class="min-w-full divide-y divide-gray-200" id="rulesTable">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Listen Path</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Destination URL</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Method</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Security</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200" id="rulesBody">
+                    <tr>
+                        <td colspan="5" class="px-6 py-4 text-center text-sm text-gray-500">
+                            Enter proper API Key and refresh to view rules.
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Overview Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
+            <div class="bg-white p-6 rounded-lg shadow border border-gray-100">
+                <h3 class="text-lg font-medium text-gray-800 mb-2">Metrics Endpoint</h3>
+                <p class="text-sm text-gray-600 mb-4">Graft exports prometheus metrics for monitoring ingestion rates and errors.</p>
+                <a href="/api/v1/metrics" target="_blank" class="text-indigo-600 hover:text-indigo-800 text-sm font-semibold">View Raw Metrics &rarr;</a>
+            </div>
+            <div class="bg-white p-6 rounded-lg shadow border border-gray-100">
+                <h3 class="text-lg font-medium text-gray-800 mb-2">System Health</h3>
+                <p class="text-sm text-gray-600 mb-4">Check if routing and core components are stable.</p>
+                <a href="/healthz" target="_blank" class="text-indigo-600 hover:text-indigo-800 text-sm font-semibold">Ping /healthz &rarr;</a>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Simple API Logic -->
+    <script>
+        const getHeaders = () => {
+            const val = document.getElementById('apiKey').value;
+            return {
+                'Authorization': `Bearer ${val}`,
+                'Content-Type': 'application/json'
+            };
+        };
+
+        const showAlert = (msg, type = 'error') => {
+            const box = document.getElementById('alertBox');
+            box.textContent = msg;
+            box.className = `mb-4 p-4 rounded text-sm ${type === 'error' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`;
+            box.style.display = 'block';
+            setTimeout(() => box.style.display = 'none', 5000);
+        };
+
+        const loadRules = async () => {
+            try {
+                const res = await fetch('/api/v1/rules', { headers: getHeaders() });
+                if (res.status === 401) throw new Error("Unauthorized! Ensure API key is configured and correct.");
+                if (!res.ok) throw new Error(`Error: ${res.statusText}`);
+
+                const data = await res.json();
+                const tbody = document.getElementById('rulesBody');
+                tbody.innerHTML = '';
+
+                if (data.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" class="px-6 py-4 text-center text-sm text-gray-500">No rules configured.</td></tr>';
+                    return;
+                }
+
+                data.forEach(r => {
+                    tbody.innerHTML += `
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-indigo-600">/hook${r.listen_path}</td>
+                            <td class="px-6 py-4 text-sm text-gray-600 break-words">${r.destination_url}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-800">${r.destination_method || 'POST'}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                ${r.required_signature ? '<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Secured</span>' : '<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-600">Open</span>'}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm">
+                                <button onclick="deleteRule('${r.id}')" class="text-red-500 hover:text-red-700 font-medium">Delete</button>
+                            </td>
+                        </tr>
+                    `;
+                });
+            } catch (err) {
+                showAlert(err.message, 'error');
+            }
+        };
+
+        const deleteRule = async (id) => {
+            if(!confirm("Are you sure?")) return;
+            try {
+                const res = await fetch(`/api/v1/rules/${id}`, { method: 'DELETE', headers: getHeaders() });
+                if (!res.ok) throw new Error("Failed to delete rule");
+                loadRules();
+                showAlert("Rule deleted", "success");
+            } catch(e) {
+                showAlert(e.message, 'error');
+            }
+        };
+    </script>
+</body>
+</html>
