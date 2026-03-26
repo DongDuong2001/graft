@@ -1,4 +1,7 @@
 # Graft: Self-Hosted Webhook Bridge
+<a href="https://forg.to/products/graft" target="_blank" rel="noopener">
+  <img src="https://forg.to/api/badges/upvote/graft?theme=dark&shape=square" alt="Graft - Upvote on Forg on forg." height="48" />
+</a>
 
 [![CI](https://github.com/DongDuong2001/graft/actions/workflows/ci.yml/badge.svg)](https://github.com/DongDuong2001/graft/actions/workflows/ci.yml)
 
