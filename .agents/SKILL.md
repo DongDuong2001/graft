@@ -33,7 +33,7 @@ Use for any task in this repository: new features, bug fixes, refactors, depende
 
 ## Testing contract (before public / every feature)
 
-See **`.agents/FEATURE-TEST-MATRIX.md`** for the canonical map of **feature → package → test file**.
+See **`.agents/docs/FEATURE-TEST-MATRIX.md`** for the canonical map of **feature → package → test file**.
 
 Rules:
 
@@ -52,7 +52,7 @@ Rules:
 
 | Document | Role |
 |----------|------|
-| `.agents/coding-standards.md` | Architecture, DI, concurrency |
-| `.agents/security-guidelines.md` | Security requirements |
+| `.agents/docs/coding-standards.md` | Architecture, DI, concurrency |
+| `.agents/docs/security-guidelines.md` | Security requirements |
 | `.agents/workflows/test-and-lint.md` | Exact commands and CI notes |
-| `.agents/FEATURE-TEST-MATRIX.md` | Required tests per area |
+| `.agents/docs/FEATURE-TEST-MATRIX.md` | Required tests per area |
