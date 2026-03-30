@@ -180,35 +180,4 @@ go test -short ./...
 
 ## Contributing
 
-### Git Commit Convention
-
-We follow the [Conventional Commits](https://www.conventionalcommits.org/) specification for commit messages. This helps in generating changelogs and versioning.
-
-**Structure:**
-```
-<type>(<scope>): <subject>
-```
-
-**Types:**
-- `feat`: A new feature
-- `fix`: A bug fix
-- `docs`: Documentation only changes
-- `style`: Changes that do not affect the meaning of the code (white-space, formatting, missing semi-colons, etc)
-- `refactor`: A code change that neither fixes a bug nor adds a feature
-- `perf`: A code change that improves performance
-- `test`: Adding missing tests or correcting existing tests
-- `chore`: Changes to the build process or auxiliary tools and libraries such as documentation generation
-
-**Example:**
-```
-feat(auth): add JWT support for administrative API
-fix(engine): resolve null pointer exception when payload is empty
-docs: update README with deployment instructions
-```
-
-### Pull Requests
-
-Ensure all checks pass before submitting a PR:
-1. Run tests: `make test`
-2. Run linter: `make vet`
-3. Check formatting: `go fmt ./...`
+Please see our strict [Contributing Guidelines](CONTRIBUTING.md) for details on our code of conduct, branching strategy, commit conventions, and the process for submitting pull requests to us.
