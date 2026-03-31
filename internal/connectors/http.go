@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"math/rand"
 	"net/http"
 	"strings"
 	"time"
@@ -59,7 +60,16 @@ func (f *HTTPForwarder) Send(ctx context.Context, rule *models.Rule, payload []b
 	var lastErr error
 	for attempt := 0; attempt < maxAttempts; attempt++ {
 		if attempt > 0 {
+			// Exponential backoff: Base * 2^(attempt-1)
 			delay := f.cfg.BaseRetryWait * time.Duration(1<<uint(attempt-1))
+			// Add jitter: ±20% variation
+			jitter := time.Duration(rand.Int63n(int64(delay) / 5))
+			if rand.Intn(2) == 0 {
+				delay += jitter
+			} else {
+				delay -= jitter
+			}
+
 			t := time.NewTimer(delay)
 			select {
 			case <-ctx.Done():
