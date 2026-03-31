@@ -1,148 +1,861 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Graft Admin Dashboard</title>
+    <title>Graft Console</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind & Icons -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- Config -->
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['Fira Code', 'monospace'],
+                    },
+                    colors: {
+                        brand: {
+                            400: '#818cf8',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                        },
+                        glass: {
+                            50: 'rgba(255, 255, 255, 0.05)',
+                            100: 'rgba(255, 255, 255, 0.1)',
+                            border: 'rgba(255, 255, 255, 0.08)'
+                        }
+                    },
+                    animation: {
+                        'fade-in': 'fadeIn 0.3s ease-out forwards',
+                        'slide-up': 'slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+                    },
+                    keyframes: {
+                        fadeIn: {
+                            '0%': { opacity: '0' },
+                            '100%': { opacity: '1' },
+                        },
+                        slideUp: {
+                            '0%': { opacity: '0', transform: 'translateY(10px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+        body {
+            background-color: #030712;
+            background-image: radial-gradient(circle at 15% 50%, rgba(99, 102, 241, 0.15), transparent 25%),
+                              radial-gradient(circle at 85% 30%, rgba(139, 92, 246, 0.15), transparent 25%);
+            background-attachment: fixed;
+            color: #f3f4f6;
+        }
+        
+        /* Glass panel util */
+        .glass-panel {
+            background: rgba(17, 24, 39, 0.6);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .glass-input {
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+            transition: all 0.2s;
+        }
+        
+        .glass-input:focus {
+            background: rgba(0, 0, 0, 0.4);
+            border-color: #6366f1;
+            box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+            outline: none;
+        }
+
+        /* Nav links fade */
+        .nav-link {
+            position: relative;
+            color: #9ca3af;
+            transition: color 0.2s;
+        }
+        .nav-link:hover, .nav-link.active {
+            color: #ffffff;
+        }
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            bottom: -20px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: #6366f1;
+            opacity: 0;
+            transition: opacity 0.2s, transform 0.2s;
+            transform: translateY(2px);
+        }
+        .nav-link.active::after {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Toast animations */
+        #toast-container { z-index: 9999; }
+        .toast {
+            animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
     </style>
 </head>
-<body class="bg-gray-100 min-h-screen text-gray-800 flex flex-col">
-    <!-- Navbar -->
-    <nav class="bg-indigo-600 text-white shadow-md">
+<body class="min-h-screen flex flex-col antialiased selection:bg-brand-500 selection:text-white">
+
+    <!-- Global Toast Container -->
+    <div id="toast-container" class="fixed bottom-4 right-4 flex flex-col gap-2 pointer-events-none"></div>
+
+    <!-- Header -->
+    <header class="sticky top-0 z-40 w-full glass-panel border-b-0 border-t-0 border-l-0 border-r-0 border-b border-glass-border">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex items-center justify-between h-16">
-                <div class="flex items-center space-x-2">
-                    <svg class="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                    </svg>
-                    <span class="font-bold text-xl">Graft Webhook Bridge</span>
+                <!-- Logo & Nav -->
+                <div class="flex items-center gap-8">
+                    <div class="flex items-center gap-3">
+                        <div class="bg-brand-500/20 p-2 rounded-xl ring-1 ring-brand-500/50">
+                            <i data-lucide="network" class="w-5 h-5 text-brand-400"></i>
+                        </div>
+                        <span class="font-bold text-xl tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400">
+                            Graft
+                        </span>
+                    </div>
+                    
+                    <nav class="hidden md:flex items-center gap-6 h-full">
+                        <button onclick="navigate('rules')" id="nav-rules" class="nav-link relative text-sm font-medium flex items-center gap-2 h-16 active">
+                            <i data-lucide="layers" class="w-4 h-4"></i> Rules
+                        </button>
+                        <button onclick="navigate('logs')" id="nav-logs" class="nav-link relative text-sm font-medium flex items-center gap-2 h-16">
+                            <i data-lucide="activity" class="w-4 h-4"></i> Deliveries
+                        </button>
+                        <button onclick="navigate('preview')" id="nav-preview" class="nav-link relative text-sm font-medium flex items-center gap-2 h-16">
+                            <i data-lucide="terminal-square" class="w-4 h-4"></i> Sandbox
+                        </button>
+                        <a href="/api/v1/metrics" target="_blank" class="nav-link relative text-sm font-medium flex items-center gap-2 h-16">
+                            <i data-lucide="line-chart" class="w-4 h-4"></i> Metrics
+                        </a>
+                    </nav>
                 </div>
+
+                <!-- API Key & Global Actions -->
+                <div class="flex items-center gap-4">
+                    <div class="relative group">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <i data-lucide="key" class="w-4 h-4 text-gray-400 group-focus-within:text-brand-400"></i>
+                        </div>
+                        <input id="apiKey" type="password" placeholder="Admin Key" 
+                               class="glass-input text-sm rounded-lg pl-10 pr-3 py-1.5 w-48 transition-all">
+                    </div>
+                    <button onclick="refreshCurrentView()" class="p-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors" title="Reload Data">
+                        <i data-lucide="refresh-cw" class="w-4 h-4" id="refresh-icon"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-grow w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 relative">
+        
+        <!-- View: Rules List -->
+        <section id="view-rules" class="animate-fade-in block">
+            <div class="flex justify-between items-end mb-8">
                 <div>
-                    <input id="apiKey" type="password" placeholder="Admin API Key" class="px-3 py-1 text-gray-800 rounded text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400">
-                    <button id="refreshBtn" onclick="loadRules()" class="ml-2 px-3 py-1 bg-indigo-500 hover:bg-indigo-400 rounded text-sm font-medium transition">Refresh</button>
+                    <h1 class="text-3xl font-bold tracking-tight text-white mb-1">Routing Rules</h1>
+                    <p class="text-gray-400 text-sm">Configure how incoming webhooks are validated, transformed, and distributed.</p>
+                </div>
+                <button onclick="openRuleModal()" class="flex items-center gap-2 px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white text-sm font-medium rounded-lg shadow-[0_0_15px_rgba(79,70,229,0.4)] transition-all">
+                    <i data-lucide="plus" class="w-4 h-4"></i> Create Rule
+                </button>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="rules-grid">
+                <!-- Rules generated via JS -->
+            </div>
+            
+            <!-- Empty state -->
+            <div id="rules-empty" class="hidden glass-panel rounded-2xl p-12 text-center flex-col items-center justify-center border-dashed border-2 border-white/10 mt-8">
+                <div class="bg-glass-50 p-4 rounded-full mb-4 inline-flex">
+                    <i data-lucide="git-merge" class="w-8 h-8 text-gray-400"></i>
+                </div>
+                <h3 class="text-lg font-medium text-white mb-2">No rules configured</h3>
+                <p class="text-gray-400 text-sm max-w-sm mx-auto mb-6">Create a rule to start routing webhook traffic to multiple destinations.</p>
+                <button onclick="openRuleModal()" class="px-4 py-2 bg-white/10 hover:bg-white/20 text-white text-sm font-medium rounded-lg transition-colors border border-white/10">
+                    Create your first rule
+                </button>
+            </div>
+        </section>
+
+        <!-- View: Deliveries Log -->
+        <section id="view-logs" class="animate-fade-in hidden">
+            <div class="flex justify-between items-end mb-8">
+                <div>
+                    <h1 class="text-3xl font-bold tracking-tight text-white mb-1">Delivery History</h1>
+                    <p class="text-gray-400 text-sm">Monitor outgoing webhook deliveries, inspect failures, and replay payloads.</p>
+                </div>
+                <div class="flex gap-4">
+                    <select id="log-rule-filter" class="glass-input text-sm rounded-lg px-3 py-2 border-glass-border focus:border-brand-500 focus:ring-1 focus:ring-brand-500" onchange="loadDeliveries()">
+                        <option value="">All Rules</option>
+                        <!-- Populated dynamically -->
+                    </select>
                 </div>
             </div>
-        </div>
-    </nav>
 
-    <!-- Main Content -->
-    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
-
-        <!-- Alerts -->
-        <div id="alertBox" class="hidden mb-4 p-4 rounded text-sm"></div>
-
-        <!-- Rules Section -->
-        <div class="flex justify-between items-center mb-4">
-            <h2 class="text-2xl font-semibold text-gray-700">Configured Rules</h2>
-            <button onclick="toggleModal()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded shadow transition">
-                + New Rule
-            </button>
-        </div>
-
-        <div class="bg-white shadow rounded-lg overflow-hidden">
-            <table class="min-w-full divide-y divide-gray-200" id="rulesTable">
-                <thead class="bg-gray-50">
-                    <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Listen Path</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Destination URL</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Method</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Security</th>
-                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                    </tr>
-                </thead>
-                <tbody class="bg-white divide-y divide-gray-200" id="rulesBody">
-                    <tr>
-                        <td colspan="5" class="px-6 py-4 text-center text-sm text-gray-500">
-                            Enter proper API Key and refresh to view rules.
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-
-        <!-- Overview Cards -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
-            <div class="bg-white p-6 rounded-lg shadow border border-gray-100">
-                <h3 class="text-lg font-medium text-gray-800 mb-2">Metrics Endpoint</h3>
-                <p class="text-sm text-gray-600 mb-4">Graft exports prometheus metrics for monitoring ingestion rates and errors.</p>
-                <a href="/api/v1/metrics" target="_blank" class="text-indigo-600 hover:text-indigo-800 text-sm font-semibold">View Raw Metrics &rarr;</a>
+            <div class="glass-panel rounded-xl overflow-hidden shadow-xl border border-glass-border">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="border-b border-glass-border bg-white/5 text-sm font-medium text-gray-300">
+                                <th class="p-4 pl-6 pl-4 whitespace-nowrap">ID</th>
+                                <th class="p-4 whitespace-nowrap">Rule</th>
+                                <th class="p-4 whitespace-nowrap">Time</th>
+                                <th class="p-4 whitespace-nowrap">Status</th>
+                                <th class="p-4 whitespace-nowrap">HTTP Code</th>
+                                <th class="p-4 whitespace-nowrap">Duration</th>
+                                <th class="p-4 pr-6 text-right whitespace-nowrap">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="logs-tbody" class="divide-y divide-glass-border text-sm">
+                            <!-- Logs generated via JS -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div id="logs-empty" class="hidden p-8 text-center text-gray-400">
+                    No delivery records found matching the current criteria.
+                </div>
             </div>
-            <div class="bg-white p-6 rounded-lg shadow border border-gray-100">
-                <h3 class="text-lg font-medium text-gray-800 mb-2">System Health</h3>
-                <p class="text-sm text-gray-600 mb-4">Check if routing and core components are stable.</p>
-                <a href="/healthz" target="_blank" class="text-indigo-600 hover:text-indigo-800 text-sm font-semibold">Ping /healthz &rarr;</a>
+        </section>
+
+        <!-- View: Transform Sandbox -->
+        <section id="view-preview" class="animate-fade-in hidden h-[75vh]">
+            <div class="flex justify-between items-end mb-6">
+                <div>
+                    <h1 class="text-3xl font-bold tracking-tight text-white mb-1">Pipeline Sandbox</h1>
+                    <p class="text-gray-400 text-sm">Test conditional expressions and payload transformations in real-time.</p>
+                </div>
+                <button onclick="runPreview()" class="flex items-center gap-2 px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white text-sm font-medium rounded-lg shadow transition-all" id="btn-run-preview">
+                    <i data-lucide="play" class="w-4 h-4"></i> Run Pipeline
+                </button>
             </div>
-        </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full min-h-[500px]">
+                <!-- Left: Input -->
+                <div class="glass-panel rounded-xl flex flex-col overflow-hidden border border-glass-border shadow-lg">
+                    <div class="bg-black/30 px-4 py-3 border-b border-white/5 flex items-center justify-between">
+                        <span class="text-sm font-medium text-gray-300 flex items-center gap-2"><i data-lucide="file-json" class="w-4 h-4"></i> Incoming JSON</span>
+                    </div>
+                    <textarea id="preview-input" class="w-full h-full p-4 bg-transparent text-gray-300 font-mono text-sm resize-none focus:outline-none" spellcheck="false">{
+  "event": "order.created",
+  "data": {
+    "total": 120.50,
+    "user": "alice"
+  }
+}</textarea>
+                </div>
+
+                <!-- Right: Config & Output -->
+                <div class="flex flex-col gap-6 h-full">
+                    <!-- Config -->
+                    <div class="glass-panel rounded-xl overflow-hidden border border-glass-border shadow-lg h-1/2 flex flex-col">
+                        <div class="bg-black/30 px-4 py-3 border-b border-white/5 flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <span class="text-sm font-medium text-gray-300 flex items-center gap-2"><i data-lucide="code" class="w-4 h-4"></i> Transformation Script</span>
+                                <select id="preview-type" class="ml-2 glass-input text-xs rounded px-2 py-1">
+                                    <option value="go_template">Go Template</option>
+                                    <option value="javascript">JavaScript</option>
+                                </select>
+                            </div>
+                        </div>
+                        <textarea id="preview-script" class="w-full h-full p-4 bg-transparent text-gray-300 font-mono text-sm resize-none focus:outline-none" spellcheck="false">{"message": "New order by {{.data.user}} for ${{.data.total}}"}</textarea>
+                    </div>
+                    
+                    <!-- Output -->
+                    <div class="glass-panel rounded-xl overflow-hidden border border-glass-border shadow-lg h-1/2 flex flex-col">
+                        <div class="bg-black/30 px-4 py-3 border-b border-white/5 flex items-center justify-between">
+                            <span class="text-sm font-medium text-gray-300 flex items-center gap-2"><i data-lucide="terminal" class="w-4 h-4"></i> Output</span>
+                            <span id="preview-status" class="text-xs text-brand-400 font-mono"></span>
+                        </div>
+                        <pre id="preview-output" class="w-full h-full p-4 bg-black/50 text-emerald-400 font-mono text-sm overflow-auto m-0"></pre>
+                    </div>
+                </div>
+            </div>
+        </section>
 
     </main>
 
-    <!-- Simple API Logic -->
+    <!-- Modal: Rule Form -->
+    <div id="rule-modal" class="fixed inset-0 z-50 hidden">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeModal()"></div>
+        <div class="absolute inset-x-0 bottom-0 md:top-10 md:bottom-10 md:inset-x-auto md:left-1/2 md:-translate-x-1/2 w-full md:w-3/4 max-w-4xl bg-gray-900 border border-glass-border md:rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-slide-up">
+            
+            <div class="flex items-center justify-between px-6 py-4 border-b border-white/10 bg-gray-900/50 backdrop-blur-xl shrink-0">
+                <h2 id="modal-title" class="text-xl font-bold text-white">Configure Rule</h2>
+                <button onclick="closeModal()" class="text-gray-400 hover:text-white transition-colors">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            
+            <div class="p-6 overflow-y-auto flex-grow custom-scrollbar space-y-8 bg-[#0a0f1a]">
+                
+                <form id="ruleForm" onsubmit="event.preventDefault(); saveRule();">
+                    <input type="hidden" id="rule-id">
+                    
+                    <!-- Basic Info -->
+                    <div>
+                        <h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4 border-b border-white/5 pb-2">1. Ingress Settings</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-300 mb-1">Rule Name</label>
+                                <input type="text" id="rule-name" required class="glass-input w-full rounded-lg px-3 py-2 text-sm" placeholder="e.g. Stripe to Slack">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-300 mb-1">Listen Path</label>
+                                <div class="flex">
+                                    <span class="inline-flex items-center px-3 rounded-l-lg border border-r-0 border-glass-border bg-white/5 text-gray-400 text-sm">/hook</span>
+                                    <input type="text" id="rule-path" required class="glass-input flex-1 rounded-r-lg px-3 py-2 text-sm" placeholder="/stripe">
+                                </div>
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-medium text-gray-300 mb-1">Description</label>
+                                <input type="text" id="rule-desc" class="glass-input w-full rounded-lg px-3 py-2 text-sm" placeholder="Optional notes...">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Security -->
+                    <div class="mt-8">
+                        <h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4 border-b border-white/5 pb-2">2. Security & Limits</h3>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+                            <!-- Verification -->
+                            <div class="p-4 rounded-xl border border-glass-border bg-white/5 hover:bg-white/10 transition-colors">
+                                <label class="flex items-center gap-3 cursor-pointer">
+                                    <input type="checkbox" id="rule-sign" onchange="toggleSignFields()" class="w-4 h-4 rounded text-brand-600 focus:ring-brand-500 bg-gray-800 border-gray-600">
+                                    <span class="text-sm font-semibold text-white">Require Signature Verification</span>
+                                </label>
+                                <div id="sign-fields" class="mt-4 space-y-4 hidden pl-7">
+                                    <div>
+                                        <label class="block text-xs text-gray-400 mb-1">Provider Format</label>
+                                        <select id="rule-sign-fmt" class="glass-input w-full rounded pl-2 py-1 text-sm bg-gray-800">
+                                            <option value="hex">Generic Hex</option>
+                                            <option value="shopify_hmac">Shopify HMAC</option>
+                                            <option value="slack_v0">Slack v0</option>
+                                            <option value="stripe_v1">Stripe v1</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs text-gray-400 mb-1">Header Name</label>
+                                        <input type="text" id="rule-sign-hdr" class="glass-input w-full rounded pl-2 py-1 text-sm" placeholder="X-Hub-Signature-256">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs text-gray-400 mb-1" id="lbl-secret">Shared Secret</label>
+                                        <input type="password" id="rule-sign-sec" class="glass-input w-full rounded pl-2 py-1 text-sm" placeholder="Enter new secret...">
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Rate limits & IP -->
+                            <div class="p-4 rounded-xl border border-glass-border bg-white/5 space-y-4">
+                                <label class="block text-sm font-semibold text-white">Access Controls</label>
+                                
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <label class="block text-xs text-gray-400 mb-1">Rate Limit (req/window)</label>
+                                        <input type="number" id="rule-rl-max" class="glass-input w-full rounded pl-2 py-1 text-sm" placeholder="100" min="0">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs text-gray-400 mb-1">Limit Window</label>
+                                        <input type="text" id="rule-rl-win" class="glass-input w-full rounded pl-2 py-1 text-sm" placeholder="1m (e.g. 1m, 1h)">
+                                    </div>
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-xs text-gray-400 mb-1">Allowed IPs / CIDRs (Comma separated)</label>
+                                    <input type="text" id="rule-ips" class="glass-input w-full rounded pl-2 py-1 text-sm" placeholder="192.168.1.0/24, 10.0.0.1">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Pipeline -->
+                    <div class="mt-8">
+                        <div class="flex items-center justify-between mb-4 border-b border-white/5 pb-2">
+                            <h3 class="text-sm font-bold text-gray-400 uppercase tracking-wider">3. Advanced Pipeline</h3>
+                        </div>
+                        
+                        <!-- Legacy fallback info -->
+                        <div class="text-xs text-yellow-500 bg-yellow-500/10 border border-yellow-500/20 p-3 rounded-lg mb-4 flex gap-2">
+                            <i data-lucide="info" class="w-4 h-4 shrink-0"></i>
+                            For simple configurations, fill out primary destination. For complex routing (Fan-out, Conditions) define multiple destinations.
+                        </div>
+
+                        <!-- Primary destination -->
+                        <div class="bg-white/5 border border-glass-border rounded-xl p-4 mb-4">
+                            <h4 class="text-sm font-medium text-white mb-3 flex items-center gap-2"><i data-lucide="arrow-right-circle" class="w-4 h-4 text-brand-400"></i> Primary Forward</h4>
+                            <div class="grid grid-cols-12 gap-3">
+                                <div class="col-span-3">
+                                    <select id="rule-dest-type" class="glass-input w-full rounded-md px-2 py-1 text-sm bg-gray-800">
+                                        <option value="http">HTTP URL</option>
+                                        <option value="slack">Slack</option>
+                                        <option value="discord">Discord</option>
+                                        <option value="teams">MS Teams</option>
+                                    </select>
+                                </div>
+                                <div class="col-span-7">
+                                    <input type="url" id="rule-dest-url" class="glass-input w-full rounded-md px-3 py-1 text-sm" placeholder="https://api.example.com/ingest">
+                                </div>
+                                <div class="col-span-2">
+                                    <select id="rule-dest-method" class="glass-input w-full rounded-md px-2 py-1 text-sm bg-gray-800">
+                                        <option value="POST">POST</option>
+                                        <option value="PUT">PUT</option>
+                                        <option value="GET">GET</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Transform script -->
+                        <div class="bg-white/5 border border-glass-border rounded-xl p-4">
+                            <div class="flex items-center justify-between mb-3">
+                                <h4 class="text-sm font-medium text-white flex items-center gap-2"><i data-lucide="zap" class="w-4 h-4 text-brand-400"></i> Payload Transform</h4>
+                                <select id="rule-transform-type" class="glass-input rounded text-xs px-2 py-1 bg-gray-800">
+                                    <option value="go_template">Go Template</option>
+                                    <option value="javascript">JavaScript</option>
+                                </select>
+                            </div>
+                            <textarea id="rule-transform-tmpl" class="glass-input w-full rounded-md p-3 text-sm font-mono h-24" placeholder="Leave blank to passthrough raw payload..." spellcheck="false"></textarea>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            
+            <div class="px-6 py-4 bg-gray-900 border-t border-white/10 flex justify-end gap-3 shrink-0">
+                <button onclick="closeModal()" type="button" class="px-4 py-2 text-sm font-medium text-gray-300 hover:text-white transition-colors">Cancel</button>
+                <button onclick="document.getElementById('ruleForm').dispatchEvent(new Event('submit'))" type="submit" class="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white shadow-lg shadow-brand-500/20 text-sm font-medium rounded-lg transition-all flex items-center gap-2">
+                    <i data-lucide="save" class="w-4 h-4"></i> Save Rule
+                </button>
+            </div>
+            
+        </div>
+    </div>
+
+    <!-- Scripts -->
     <script>
-        const getHeaders = () => {
-            const val = document.getElementById('apiKey').value;
-            return {
-                'Authorization': `Bearer ${val}`,
-                'Content-Type': 'application/json'
-            };
+        // --- Initialization ---
+        lucide.createIcons();
+        let rulesCache = [];
+
+        // API Helper
+        const fetchApi = async (endpoint, options = {}) => {
+            const apiKey = document.getElementById('apiKey').value;
+            if (!apiKey) throw new Error('Admin API key is required.');
+
+            const res = await fetch(`/api/v1${endpoint}`, {
+                ...options,
+                headers: {
+                    'Authorization': `Bearer ${apiKey}`,
+                    'Content-Type': 'application/json',
+                    ...(options.headers || {})
+                }
+            });
+
+            if (res.status === 401) throw new Error('Unauthorized. Invalid API key.');
+            if (res.status === 204) return null;
+            
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+            return data;
         };
 
-        const showAlert = (msg, type = 'error') => {
-            const box = document.getElementById('alertBox');
-            box.textContent = msg;
-            box.className = `mb-4 p-4 rounded text-sm ${type === 'error' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`;
-            box.style.display = 'block';
-            setTimeout(() => box.style.display = 'none', 5000);
+        // UI Toast
+        const toast = (msg, type = 'success') => {
+            const container = document.getElementById('toast-container');
+            const el = document.createElement('div');
+            
+            const colors = {
+                success: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30 ring-emerald-500/50 hover:bg-emerald-500/30',
+                error: 'bg-red-500/20 text-red-400 border-red-500/30 ring-red-500/50 hover:bg-red-500/30',
+                info: 'bg-blue-500/20 text-blue-400 border-blue-500/30 ring-blue-500/50 hover:bg-blue-500/30',
+            }[type];
+
+            const icon = {
+                success: 'check-circle',
+                error: 'alert-circle',
+                info: 'info'
+            }[type];
+
+            el.className = `toast backdrop-blur-md rounded-lg px-4 py-3 border flex items-center gap-3 shadow-lg pointer-events-auto transition-all cursor-pointer ${colors}`;
+            el.innerHTML = `<i data-lucide="${icon}" class="w-5 h-5 shrink-0"></i><span class="text-sm font-medium mr-4">${msg}</span>`;
+            el.onclick = () => el.remove();
+            
+            container.appendChild(el);
+            lucide.createIcons({ root: el });
+            setTimeout(() => {
+                if(el.parentNode) {
+                    el.style.opacity = '0';
+                    el.style.transform = 'translateY(10px)';
+                    setTimeout(() => el.remove(), 300);
+                }
+            }, 4000);
         };
 
-        const loadRules = async () => {
+        // Navigation
+        function navigate(viewId) {
+            document.querySelectorAll('section[id^="view-"]').forEach(el => {
+                el.classList.add('hidden');
+            });
+            document.getElementById(`view-${viewId}`).classList.remove('hidden');
+            
+            document.querySelectorAll('.nav-link').forEach(el => el.classList.remove('active', 'text-white'));
+            const activeNav = document.getElementById(`nav-${viewId}`);
+            if(activeNav) activeNav.classList.add('active', 'text-white');
+
+            if(viewId === 'rules') loadRules();
+            if(viewId === 'logs') loadDeliveries();
+        }
+
+        async function refreshCurrentView() {
+            const icon = document.getElementById('refresh-icon');
+            icon.classList.add('animate-spin');
+            
             try {
-                const res = await fetch('/api/v1/rules', { headers: getHeaders() });
-                if (res.status === 401) throw new Error("Unauthorized! Ensure API key is configured and correct.");
-                if (!res.ok) throw new Error(`Error: ${res.statusText}`);
+                const activeId = document.querySelector('section[id^="view-"]:not(.hidden)').id;
+                if(activeId === 'view-rules') await loadRules();
+                if(activeId === 'view-logs') await loadDeliveries();
+            } catch(e) { }
+            
+            setTimeout(() => icon.classList.remove('animate-spin'), 500);
+        }
 
-                const data = await res.json();
-                const tbody = document.getElementById('rulesBody');
-                tbody.innerHTML = '';
+        // --- Rules Management ---
+        async function loadRules() {
+            if(!document.getElementById('apiKey').value) return;
+            try {
+                const rules = await fetchApi('/rules');
+                rulesCache = rules || [];
+                renderRulesGrid(rulesCache);
+                
+                // Update log filter dropdown
+                const filter = document.getElementById('log-rule-filter');
+                const prev = filter.value;
+                filter.innerHTML = '<option value="">All Rules</option>';
+                rulesCache.forEach(r => {
+                    filter.innerHTML += `<option value="${r.id}">${r.name}</option>`;
+                });
+                filter.value = prev;
+            } catch(e) { toast(e.message, 'error'); }
+        }
 
-                if (data.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="5" class="px-6 py-4 text-center text-sm text-gray-500">No rules configured.</td></tr>';
-                    return;
+        function renderRulesGrid(rules) {
+            const grid = document.getElementById('rules-grid');
+            const empty = document.getElementById('rules-empty');
+            grid.innerHTML = '';
+            
+            if(rules.length === 0) {
+                grid.style.display = 'none';
+                empty.style.display = 'flex';
+                return;
+            }
+            
+            grid.style.display = 'grid';
+            empty.style.display = 'none';
+
+            rules.forEach(r => {
+                const isSecured = r.required_signature;
+                const destString = (r.destinations && r.destinations.length > 0) ? `${r.destinations.length} pipelines` : r.destination_url;
+
+                grid.innerHTML += `
+                    <div class="glass-panel p-5 rounded-2xl flex flex-col hover:border-brand-500/50 transition-colors group relative">
+                        <div class="flex justify-between items-start mb-4">
+                            <div>
+                                <h3 class="font-bold text-white text-lg truncate pr-4">${r.name}</h3>
+                                <p class="text-xs text-gray-400 mt-1 truncate" title="${r.description}">${r.description || 'No description'}</p>
+                            </div>
+                            <div class="flex gap-1 absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button onclick="editRule('${r.id}')" class="p-1.5 text-gray-400 hover:text-white bg-black/30 hover:bg-brand-500/40 rounded border border-white/5"><i data-lucide="edit-2" class="w-3.5 h-3.5"></i></button>
+                                <button onclick="deleteRule('${r.id}')" class="p-1.5 text-gray-400 hover:text-white bg-black/30 hover:bg-red-500/40 rounded border border-white/5"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+                            </div>
+                        </div>
+                        
+                        <div class="flex flex-col gap-3 text-sm mt-auto">
+                            <div class="flex items-center gap-2 bg-black/40 px-3 py-1.5 rounded-lg border border-white/5 w-fit font-mono text-emerald-400 text-xs">
+                                <i data-lucide="link-2" class="w-3.5 h-3.5"></i> /hook${r.listen_path}
+                            </div>
+                            
+                            <div class="flex items-center gap-2 text-gray-400 bg-white/5 px-3 py-1.5 rounded-lg">
+                                <i data-lucide="corner-down-right" class="w-4 h-4 shrink-0 text-brand-400"></i>
+                                <span class="truncate block w-full text-xs">${destString}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-4 pt-4 border-t border-glass-border flex items-center justify-between text-xs font-medium">
+                            ${isSecured ? 
+                                `<span class="flex items-center gap-1.5 px-2 py-1 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"><i data-lucide="shield-check" class="w-3.5 h-3.5"></i>Secured</span>` : 
+                                `<span class="flex items-center gap-1.5 px-2 py-1 rounded bg-yellow-500/10 text-yellow-400 border border-yellow-500/20"><i data-lucide="shield-alert" class="w-3.5 h-3.5"></i>Open</span>`}
+                            
+                            <span class="text-gray-500">${r.signature_format !== 'hex' ? r.signature_format : 'Native'}</span>
+                        </div>
+                    </div>
+                `;
+            });
+            lucide.createIcons();
+        }
+
+        // --- Modals & Forms ---
+        function toggleSignFields() {
+            const chk = document.getElementById('rule-sign').checked;
+            document.getElementById('sign-fields').style.display = chk ? 'block' : 'none';
+        }
+
+        function openRuleModal(id = null) {
+            document.getElementById('ruleForm').reset();
+            document.getElementById('rule-id').value = '';
+            document.getElementById('modal-title').textContent = 'Create Rule';
+            document.getElementById('lbl-secret').textContent = 'Shared Secret (Required)';
+            toggleSignFields();
+
+            if(id) {
+                const r = rulesCache.find(x => x.id === id);
+                if(r) {
+                    document.getElementById('modal-title').textContent = 'Edit Rule';
+                    document.getElementById('rule-id').value = r.id;
+                    document.getElementById('rule-name').value = r.name;
+                    document.getElementById('rule-desc').value = r.description;
+                    document.getElementById('rule-path').value = r.listen_path.replace('/hook', '');
+                    
+                    document.getElementById('rule-sign').checked = r.required_signature;
+                    document.getElementById('rule-sign-fmt').value = r.signature_format || 'hex';
+                    document.getElementById('rule-sign-hdr').value = r.signature_header;
+                    document.getElementById('lbl-secret').textContent = 'Shared Secret (Leave blank to keep current)';
+                    
+                    document.getElementById('rule-rl-max').value = r.rate_limit_max || '';
+                    document.getElementById('rule-rl-win').value = r.rate_limit_window || '';
+                    document.getElementById('rule-ips').value = (r.ip_allowlist || []).join(', ');
+                    
+                    document.getElementById('rule-dest-url').value = r.destination_url;
+                    document.getElementById('rule-dest-method').value = r.destination_method || 'POST';
+                    if(r.destinations && r.destinations.length > 0) {
+                        document.getElementById('rule-dest-type').value = r.destinations[0].type || 'http';
+                    }
+                    
+                    document.getElementById('rule-transform-tmpl').value = r.transform_template;
+                    if(r.transform_steps && r.transform_steps.length > 0) {
+                        document.getElementById('rule-transform-type').value = r.transform_steps[0].type;
+                        document.getElementById('rule-transform-tmpl').value = r.transform_steps[0].script;
+                    }
+
+                    toggleSignFields();
+                }
+            }
+            
+            document.getElementById('rule-modal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('rule-modal').classList.add('hidden');
+        }
+
+        async function saveRule() {
+            try {
+                const id = document.getElementById('rule-id').value;
+                const pathSuffix = document.getElementById('rule-path').value;
+                const ipsRaw = document.getElementById('rule-ips').value;
+                const ips = ipsRaw ? ipsRaw.split(',').map(s=>s.trim()).filter(s=>s) : null;
+                const transformScript = document.getElementById('rule-transform-tmpl').value;
+                const transformType = document.getElementById('rule-transform-type').value;
+
+                let steps = null;
+                if (transformScript) {
+                    steps = [{ type: transformType, script: transformScript }];
                 }
 
-                data.forEach(r => {
+                // Batch 1+4 compatibility packing
+                const destType = document.getElementById('rule-dest-type').value;
+                const destUrl = document.getElementById('rule-dest-url').value;
+                const destMethod = document.getElementById('rule-dest-method').value;
+                let destinations = null;
+                if (destUrl) {
+                    destinations = [{ url: destUrl, method: destMethod, type: destType }];
+                }
+
+                const payload = {
+                    name: document.getElementById('rule-name').value,
+                    description: document.getElementById('rule-desc').value,
+                    listen_path: '/hook' + (!pathSuffix.startsWith('/') ? '/' : '') + pathSuffix,
+                    required_signature: document.getElementById('rule-sign').checked,
+                    signature_format: document.getElementById('rule-sign-fmt').value,
+                    signature_header: document.getElementById('rule-sign-hdr').value,
+                    signature_secret: document.getElementById('rule-sign-sec').value,
+                    destination_url: destUrl,
+                    destination_method: destMethod,
+                    destinations: destinations,
+                    transform_template: transformType === 'go_template' ? transformScript : '',
+                    transform_steps: steps,
+                    rate_limit_max: parseInt(document.getElementById('rule-rl-max').value) || 0,
+                    rate_limit_window: document.getElementById('rule-rl-win').value,
+                    ip_allowlist: ips
+                };
+
+                const method = id ? 'PUT' : 'POST';
+                const endpoint = id ? `/rules/${id}` : '/rules';
+
+                await fetchApi(endpoint, { method, body: JSON.stringify(payload) });
+                toast("Rule saved successfully.");
+                closeModal();
+                loadRules();
+            } catch(e) { toast(e.message, 'error'); }
+        }
+
+        async function deleteRule(id) {
+            if(!confirm("Permenantly delete this rule?")) return;
+            try {
+                await fetchApi(`/rules/${id}`, { method: 'DELETE' });
+                toast("Rule deleted.");
+                loadRules();
+            } catch(e) { toast(e.message, 'error'); }
+        }
+
+        async function editRule(id) {
+            openRuleModal(id);
+        }
+
+        // --- Deliveries ---
+        async function loadDeliveries() {
+            const ruleId = document.getElementById('log-rule-filter').value;
+            if(!ruleId || !document.getElementById('apiKey').value) {
+                document.getElementById('logs-tbody').innerHTML = '';
+                document.getElementById('logs-empty').style.display = 'block';
+                return;
+            }
+
+            try {
+                const logs = await fetchApi(`/rules/${ruleId}/deliveries`);
+                const tbody = document.getElementById('logs-tbody');
+                const empty = document.getElementById('logs-empty');
+                
+                tbody.innerHTML = '';
+                if(!logs || logs.length === 0) {
+                    empty.style.display = 'block';
+                    return;
+                }
+                empty.style.display = 'none';
+
+                const rMap = {};
+                rulesCache.forEach(r => rMap[r.id] = r.name);
+
+                logs.forEach(d => {
+                    const date = new Date(d.created_at * 1000).toLocaleString();
+                    const sColors = {
+                        'delivered': 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+                        'failed': 'bg-red-500/10 text-red-400 border-red-500/20',
+                        'dead_letter': 'bg-gray-500/10 text-gray-400 border-gray-500/20',
+                        'pending': 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20',
+                        'processing': 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+                    }[d.status] || 'bg-gray-500/10 text-gray-400';
+
+                    const iconStr = d.success ? '<i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-500"></i>' : '<i data-lucide="alert-circle" class="w-4 h-4 text-red-500"></i>';
+
                     tbody.innerHTML += `
-                        <tr class="hover:bg-gray-50">
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-indigo-600">/hook${r.listen_path}</td>
-                            <td class="px-6 py-4 text-sm text-gray-600 break-words">${r.destination_url}</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-800">${r.destination_method || 'POST'}</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                ${r.required_signature ? '<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Secured</span>' : '<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-600">Open</span>'}
+                        <tr class="hover:bg-white/5 transition-colors group">
+                            <td class="p-4 pl-6 font-mono text-xs text-gray-400 flex items-center gap-2">
+                                ${iconStr} ${d.id.substring(0,8)}...
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm">
-                                <button onclick="deleteRule('${r.id}')" class="text-red-500 hover:text-red-700 font-medium">Delete</button>
+                            <td class="p-4 text-white">${rMap[d.rule_id] || 'Unknown'}</td>
+                            <td class="p-4 text-gray-400 tabular-nums">${date}</td>
+                            <td class="p-4">
+                                <span class="px-2 py-0.5 rounded text-xs font-semibold border uppercase ${sColors}">${d.status}</span>
+                            </td>
+                            <td class="p-4 tabular-nums ${d.status_code >= 200 && d.status_code <300 ? 'text-emerald-400' : 'text-red-400'}">${d.status_code || '-'}</td>
+                            <td class="p-4 tabular-nums text-gray-400">${d.duration_ms}ms</td>
+                            <td class="p-4 pr-6 text-right">
+                                <button onclick="replayDelivery('${d.id}')" class="p-1.5 bg-brand-500/10 hover:bg-brand-500/30 text-brand-400 rounded-lg transition-colors border border-brand-500/20" title="Replay Delivery">
+                                    <i data-lucide="play-circle" class="w-4 h-4"></i>
+                                </button>
                             </td>
                         </tr>
                     `;
                 });
-            } catch (err) {
-                showAlert(err.message, 'error');
-            }
-        };
+                lucide.createIcons();
+            } catch(e) { toast(e.message, 'error'); }
+        }
 
-        const deleteRule = async (id) => {
-            if(!confirm("Are you sure?")) return;
+        async function replayDelivery(id) {
             try {
-                const res = await fetch(`/api/v1/rules/${id}`, { method: 'DELETE', headers: getHeaders() });
-                if (!res.ok) throw new Error("Failed to delete rule");
-                loadRules();
-                showAlert("Rule deleted", "success");
+                toast("Replay triggered...", "info");
+                await fetchApi(`/deliveries/${id}/replay`, { method: 'POST' });
+                toast("Replay successful!");
+                loadDeliveries();
             } catch(e) {
-                showAlert(e.message, 'error');
+                toast(`Replay failed: ${e.message}`, 'error');
             }
-        };
+        }
+
+        // --- Sandbox Preview ---
+        async function runPreview() {
+            const btn = document.getElementById('btn-run-preview');
+            const icon = btn.innerHTML;
+            btn.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Running`;
+            
+            try {
+                const payloadStr = document.getElementById('preview-input').value;
+                const template = document.getElementById('preview-script').value;
+                const type = document.getElementById('preview-type').value;
+
+                const payload = JSON.parse(payloadStr); // Validate early
+
+                const res = await fetchApi('/transform/preview', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        payload: payload,
+                        template: template,
+                        transform_steps: [{ type: type, script: template }]
+                    })
+                });
+
+                document.getElementById('preview-output').textContent = JSON.stringify(res.result_json || JSON.parse(res.result), null, 2);
+                document.getElementById('preview-status').textContent = '200 OK - ' + (res.duration_ms || 0) + 'ms';
+                document.getElementById('preview-status').className = 'text-xs text-emerald-400 font-mono';
+            } catch(e) {
+                document.getElementById('preview-output').textContent = 'Error: ' + e.message;
+                document.getElementById('preview-status').textContent = 'Failed';
+                document.getElementById('preview-status').className = 'text-xs text-red-400 font-mono';
+            }
+            
+            btn.innerHTML = icon;
+            lucide.createIcons();
+        }
+
+        // Auth on enter
+        document.getElementById('apiKey').addEventListener('keypress', (e) => {
+            if(e.key === 'Enter') {
+                e.target.blur();
+                loadRules();
+            }
+        });
     </script>
 </body>
 </html>
