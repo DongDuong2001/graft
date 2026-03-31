@@ -56,4 +56,3 @@ func WriteMetricsJSON(w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(SnapshotNow())
 }
-

@@ -9,19 +9,22 @@ import (
 	"Graft/internal/engine"
 	"Graft/internal/models"
 	"Graft/internal/webhook"
+	"time"
 )
 
 const maxBodyBytes = 5 << 20 // 5 MiB
 
 // WebhookHandler receives POST webhooks and forwards them per rules.
 type WebhookHandler struct {
-	eng *engine.Engine
+	eng   *engine.Engine
+	queue engine.Queue
 }
 
 // NewWebhookHandler constructs a WebhookHandler.
-func NewWebhookHandler(eng *engine.Engine) *WebhookHandler {
+func NewWebhookHandler(eng *engine.Engine, q engine.Queue) *WebhookHandler {
 	return &WebhookHandler{
-		eng: eng,
+		eng:   eng,
+		queue: q,
 	}
 }
 
@@ -41,23 +44,32 @@ func (h *WebhookHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	wh := webhook.NewFromRequest(r, body)
 
-	_, err = h.eng.Process(r.Context(), wh)
+	// Prepare delivery record (Pending state)
+	d, _, err := h.eng.PrepareDelivery(r.Context(), wh)
 	if err != nil {
 		if errors.Is(err, models.ErrRuleNotFound) {
 			http.Error(w, "Not found", http.StatusNotFound)
 			return
 		}
-		if errors.Is(err, models.ErrUnauthorized) {
-			slog.Warn("Unauthorized webhook attempt", "path", r.URL.Path, "error", err)
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
-			return
-		}
-		
-		slog.Error("Webhook processing failed", "path", r.URL.Path, "error", err)
-		http.Error(w, "Bad Gateway", http.StatusBadGateway)
+		slog.Error("Failed to prepare delivery", "path", r.URL.Path, "error", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
+	// Enqueue for background processing
+	task := &engine.Task{
+		DeliveryID: d.ID,
+		Webhook:    wh,
+		EnqueuedAt: time.Now(),
+	}
+
+	if err := h.queue.Enqueue(r.Context(), task); err != nil {
+		slog.Error("Failed to enqueue webhook", "delivery_id", d.ID, "error", err)
+		http.Error(w, "Service Unavailable", http.StatusServiceUnavailable)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	_, _ = w.Write([]byte(`{"status":"delivered"}`))
+	w.WriteHeader(http.StatusAccepted)
+	_, _ = w.Write([]byte(`{"status":"accepted","delivery_id":"` + d.ID + `"}`))
 }

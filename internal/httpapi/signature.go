@@ -11,9 +11,7 @@ import (
 )
 
 func verifySignatureHex(payload []byte, secret, headerValue string) bool {
-	if strings.HasPrefix(headerValue, "sha256=") {
-		headerValue = strings.TrimPrefix(headerValue, "sha256=")
-	}
+	headerValue = strings.TrimPrefix(headerValue, "sha256=")
 
 	mac := hmac.New(sha256.New, []byte(secret))
 	_, _ = mac.Write(payload)
