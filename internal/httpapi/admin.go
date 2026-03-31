@@ -9,29 +9,35 @@ import (
 	"strings"
 
 	"Graft/internal/admin"
+	"Graft/internal/engine"
 	"Graft/internal/metrics"
 	"Graft/internal/models"
+	"Graft/internal/transformer"
 )
 
 // AdminHandler serves authenticated admin APIs under /api/v1 (after StripPrefix).
 type AdminHandler struct {
 	svc *admin.Service
+	eng *engine.Engine
 }
 
 // NewAdminHandler constructs an AdminHandler.
-func NewAdminHandler(svc *admin.Service) *AdminHandler {
-	return &AdminHandler{svc: svc}
+func NewAdminHandler(svc *admin.Service, eng *engine.Engine) *AdminHandler {
+	return &AdminHandler{svc: svc, eng: eng}
 }
 
-// Register attaches routes on mux (paths relative to /api/v1 mount).
+// --- Register attaches routes on mux (paths relative to /api/v1 mount) ---
 func (h *AdminHandler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /rules", h.listRules)
 	mux.HandleFunc("POST /rules", h.createRule)
 	mux.HandleFunc("GET /rules/{id}/deliveries", h.listDeliveries)
+	mux.HandleFunc("POST /deliveries/{id}/replay", h.replayDelivery) // Batch 2
 	mux.HandleFunc("GET /rules/{id}", h.getRule)
 	mux.HandleFunc("PUT /rules/{id}", h.updateRule)
 	mux.HandleFunc("DELETE /rules/{id}", h.deleteRule)
 	mux.HandleFunc("GET /metrics", h.getMetrics)
+	// --- Transform preview endpoint ---
+	mux.HandleFunc("POST /transform/preview", h.transformPreview)
 }
 
 func (h *AdminHandler) getMetrics(w http.ResponseWriter, r *http.Request) {
@@ -42,6 +48,7 @@ func (h *AdminHandler) getMetrics(w http.ResponseWriter, r *http.Request) {
 	metrics.WriteMetricsJSON(w)
 }
 
+// --- ruleWrite is the JSON DTO for creating/updating rules ---
 type ruleWrite struct {
 	Name                     string            `json:"name"`
 	Description              string            `json:"description"`
@@ -57,8 +64,21 @@ type ruleWrite struct {
 	DestinationURL           string            `json:"destination_url"`
 	DestinationMethod        string            `json:"destination_method"`
 	DestinationHeaders       map[string]string `json:"destination_headers"`
+
+	// --- Fan-out destinations ---
+	Destinations []models.Destination `json:"destinations,omitempty"`
+	// --- Conditional routing ---
+	Conditions []models.Condition `json:"conditions,omitempty"`
+	// --- Pipeline transformations ---
+	TransformSteps []models.TransformStep `json:"transform_steps,omitempty"`
+	// --- Per-rule rate limiting ---
+	RateLimitMax    int    `json:"rate_limit_max,omitempty"`
+	RateLimitWindow string `json:"rate_limit_window,omitempty"`
+	// --- Per-rule IP allowlist ---
+	IPAllowlist []string `json:"ip_allowlist,omitempty"`
 }
 
+// --- toInput converts the JSON DTO into an admin.RuleInput ---
 func (r ruleWrite) toInput() admin.RuleInput {
 	return admin.RuleInput{
 		Name:                     r.Name,
@@ -75,6 +95,12 @@ func (r ruleWrite) toInput() admin.RuleInput {
 		DestinationURL:           r.DestinationURL,
 		DestinationMethod:        r.DestinationMethod,
 		DestinationHeaders:       r.DestinationHeaders,
+		Destinations:             r.Destinations,
+		Conditions:               r.Conditions,
+		TransformSteps:           r.TransformSteps,
+		RateLimitMax:             r.RateLimitMax,
+		RateLimitWindow:          r.RateLimitWindow,
+		IPAllowlist:              r.IPAllowlist,
 	}
 }
 
@@ -195,7 +221,7 @@ func (h *AdminHandler) listDeliveries(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	id := r.PathValue("id")
-	
+
 	// Validate rule exists first?
 	// Service ListDeliveries doesn't explicitly check existence but Repo finds by RuleID.
 	// We can check if rule exists first.
@@ -226,9 +252,68 @@ func (h *AdminHandler) listDeliveries(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, d)
 }
 
+// ---------------------------------------------------------------------------
+// replayDelivery manually triggers the Engine to re-process a failed delivery.
+// ---------------------------------------------------------------------------
+func (h *AdminHandler) replayDelivery(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	id := r.PathValue("id")
+	
+	d, err := h.eng.ReplayDelivery(r.Context(), id)
+	if err != nil {
+		if errors.Is(err, models.ErrRuleNotFound) {
+			http.Error(w, "Rule for this delivery not found", http.StatusNotFound)
+			return
+		}
+		if strings.Contains(err.Error(), "no captured request body") {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		http.Error(w, "Internal Server Error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	
+	writeJSON(w, http.StatusOK, d)
+}
+
+
 func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(v)
 }
 
+// ---------------------------------------------------------------------------
+// transformPreview accepts a sample JSON payload and a transformation template,
+// then returns the transformed result. Used by the UI's live template editor.
+// ---------------------------------------------------------------------------
+func (h *AdminHandler) transformPreview(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Payload  json.RawMessage        `json:"payload"`
+		Template string                 `json:"template"`
+		Steps    []models.TransformStep `json:"steps,omitempty"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Bad Request", http.StatusBadRequest)
+		return
+	}
+
+	// --- Execute transform using the pipeline engine ---
+	t := transformer.New()
+	result, err := t.TransformPipeline([]byte(req.Payload), req.Steps, req.Template)
+	if err != nil {
+		writeJSON(w, http.StatusOK, map[string]string{
+			"error":  err.Error(),
+			"output": "",
+		})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{
+		"error":  "",
+		"output": string(result),
+	})
+}
