@@ -56,11 +56,20 @@ func Run() error {
 	})
 	fwd := forwarder.NewSyncForwarder(httpFwd)
 
-	eng := engine.New(repo, cfg.MasterKey, fwd)
+	// --- Initialize Native Connector Registry ---
+	// TODO: Get email config from the environment/cfg in a future batch
+	registry := connectors.NewRegistry(nil)
+
+	eng := engine.New(repo, cfg.MasterKey, fwd, registry)
 	admService := admin.NewService(repo, cfg.MasterKey)
 
-	wh := httpapi.NewWebhookHandler(eng)
-	adminH := httpapi.NewAdminHandler(admService)
+	// Phase 1: Initialize Queue and Worker Pool
+	queue := engine.NewMemoryQueue(1024)
+	workerPool := engine.NewWorkerPool(queue, eng, 4) // Configurable worker count?
+	workerPool.Start(context.Background())
+
+	wh := httpapi.NewWebhookHandler(eng, queue)
+	adminH := httpapi.NewAdminHandler(admService, eng)
 	adminMux := http.NewServeMux()
 	adminH.Register(adminMux)
 
@@ -101,6 +110,8 @@ func Run() error {
 	if err := srv.Shutdown(ctx); err != nil {
 		return fmt.Errorf("server shutdown: %w", err)
 	}
+
+	workerPool.Stop()
 
 	slog.Info("Server exited gracefully")
 	return nil
