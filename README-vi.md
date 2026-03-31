@@ -3,12 +3,18 @@
 # Graft: Cầu nối Webhook tự lưu trữ (Self-Hosted Webhook Bridge)
 
 <a href="https://forg.to/products/graft" target="_blank" rel="noopener">
-  <img src="https://forg.to/api/badges/upvote/graft?theme=dark&shape=square" alt="Graft - Upvote on Forg on forg." height="48" />
+  <img src="https://forg.to/api/badges/upvote/graft?theme=dark&shape=square" alt="Graft - Upvote on Forg on forg." height="40" />
+</a>
+<a href="https://unikorn.vn/p/graft?ref=embed-graft" target="_blank">
+  <img src="https://unikorn.vn/api/widgets/badge/graft?theme=light" alt="Graft trên Unikorn.vn" height="40" />
 </a>
 
-[![CI](https://github.com/DongDuong2001/graft/actions/workflows/ci.yml/badge.svg)](https://github.com/DongDuong2001/graft/actions/workflows/ci.yml)
+<a href="https://github.com/DongDuong2001/graft/actions/workflows/ci.yml" target="_blank">
+  <img src="https://github.com/DongDuong2001/graft/actions/workflows/ci.yml/badge.svg" alt="CI" height="40" />
+</a>
 
 Graft là một cầu nối webhook-to-anything nhẹ và an toàn được viết bằng Go. Nó nhận webhook đến, xác thực chữ ký (từ các nhà cung cấp như GitHub hoặc Stripe), tùy chọn thay đổi JSON payload thông qua template, và chuyển tiếp kết quả đến một đích khác. Nó được thiết kế để dễ dàng tự lưu trữ và chạy trong Docker hoặc Kubernetes.
+
 
 ## Tính năng (Features)
 
@@ -22,6 +28,7 @@ Graft là một cầu nối webhook-to-anything nhẹ và an toàn được vi�
 - **Tính khả dụng (Resilience)**: Có thể cấu hình số lần thử lại (retries) và thời gian chờ (timeouts) cho các yêu cầu chuyển tiếp.
 - **Khả năng quan sát (Observability)**: Endpoint `/metrics` sẵn sàng tích hợp với Prometheus và log được thu thập dưới dạng JSON có cấu trúc.
 - **Lưu trữ (Storage)**: Sử dụng SQLite để duy trì các quy tắc (rules) và lịch sử quá trình gửi.
+
 
 ## Yêu cầu Hệ thống (Prerequisites)
 
@@ -46,6 +53,7 @@ scoop install make
 
 Hoặc bạn có thể chạy trực tiếp các lệnh `go` như mô tả bên dưới.
 
+
 ## Cấu hình (Configuration)
 
 Graft được cấu hình qua các biến môi trường (environment variables). Xem [`configs/example.env`](configs/example.env) để lấy file mẫu.
@@ -64,6 +72,7 @@ Graft được cấu hình qua các biến môi trường (environment variables
 ```bash
 openssl rand -hex 32
 ```
+
 
 ## Chạy trên máy cụ bộ (Running Locally)
 
@@ -109,6 +118,7 @@ Nếu bạn đã cài `make`, bạn có thể sử dụng file `Makefile` có s�
     # Out put (Hợp lệ): {"status":"ok"}
     ```
 
+
 ## Chạy sử dụng Docker (Running with Docker)
 
 Sử dụng `docker-compose.yml` có sẵn để thiết lập nhanh Graft.
@@ -122,6 +132,7 @@ Sử dụng `docker-compose.yml` có sẵn để thiết lập nhanh Graft.
     ```
 
     Graft ngay lúc này sẽ hoạt động tại địa chỉ `http://localhost:8080`. Toàn bộ dữ liệu của bạn sẽ được lưu giữ vĩnh viễn trong Volume có tên `graft-data`.
+
 
 ## Cách thức dùng API (API Usage)
 
@@ -165,6 +176,7 @@ curl -X POST http://localhost:8080/hook/github-push \
   -d '{"ref": "refs/heads/main", ...}'
 ```
 
+
 ## Kiểm thử (Testing)
 
 Khởi động các bài test tự động thông qua câu lệnh `go test`. Hãy lưu ý rằng Integration Tests cần có CGO được bật để SQLite có thể thực thi thành công.
@@ -180,9 +192,11 @@ Chạy riêng dòng các bài unit test (bỏ qua những bài đòi hỏi Setup
 go test -short ./...
 ```
 
+
 ## Giấy phép (License)
 
 Nền tảng của chúng tôi áp dụng giấy phép [MIT License](LICENSE)
+
 
 ## Đóng góp (Contributing)
 

@@ -1,13 +1,20 @@
 [English](README.md) | [Tiếng Việt](README-vi.md)
 
 # Graft: Self-Hosted Webhook Bridge
+
 <a href="https://forg.to/products/graft" target="_blank" rel="noopener">
-  <img src="https://forg.to/api/badges/upvote/graft?theme=dark&shape=square" alt="Graft - Upvote on Forg on forg." height="48" />
+  <img src="https://forg.to/api/badges/upvote/graft?theme=dark&shape=square" alt="Graft - Upvote on Forg on forg." height="40" />
+</a>
+<a href="https://unikorn.vn/p/graft?ref=embed-graft" target="_blank">
+  <img src="https://unikorn.vn/api/widgets/badge/graft?theme=light" alt="Graft trên Unikorn.vn" height="40" />
 </a>
 
-[![CI](https://github.com/DongDuong2001/graft/actions/workflows/ci.yml/badge.svg)](https://github.com/DongDuong2001/graft/actions/workflows/ci.yml)
+<a href="https://github.com/DongDuong2001/graft/actions/workflows/ci.yml" target="_blank">
+  <img src="https://github.com/DongDuong2001/graft/actions/workflows/ci.yml/badge.svg" alt="CI" height="40" />
+</a>
 
 Graft is a lightweight, secure webhook-to-anything bridge written in Go. It receives incoming webhooks, validates signatures (from providers like GitHub or Stripe), optionally transforms the payload using templates, and forwards the result to another destination. It is designed to be self-hosted and run in Docker or Kubernetes.
+
 
 ## Features
 
@@ -21,6 +28,7 @@ Graft is a lightweight, secure webhook-to-anything bridge written in Go. It rece
 - **Resilience**: Configurable retries and timeouts for outbound requests.
 - **Observability**: Prometheus-ready metrics endpoint (`/metrics`) and JSON structured logs.
 - **Storage**: SQLite-backed persistence for rules and delivery history.
+
 
 ## Prerequisites
 
@@ -45,6 +53,7 @@ scoop install make
 
 Alternatively, you can run the `go` commands directly as described below.
 
+
 ## Configuration
 
 Graft is configured via environment variables. See [`configs/example.env`](configs/example.env) for a template.
@@ -63,6 +72,7 @@ Graft is configured via environment variables. See [`configs/example.env`](confi
 ```bash
 openssl rand -hex 32
 ```
+
 
 ## Running Locally
 
@@ -99,7 +109,7 @@ If you have `make` installed, you can use the provided `Makefile` for common tas
     export $(grep -v '^#' .env | xargs)
     go run cmd/graft/main.go
     ```
-    
+
     *Note: Ensure `CGO_ENABLED=1` is set if running on an environment where it's not default, as SQLite requires CGO.*
 
 4.  **Verify it's running:**
@@ -107,6 +117,7 @@ If you have `make` installed, you can use the provided `Makefile` for common tas
     curl http://localhost:8080/healthz
     # Output: {"status":"ok"}
     ```
+
 
 ## Running with Docker
 
@@ -121,6 +132,7 @@ Use the provided `docker-compose.yml` to spin up Graft quickly.
     ```
 
     The service will be available at `http://localhost:8080`. Data will be persisted in the `graft-data` volume.
+
 
 ## API Usage
 
@@ -164,6 +176,7 @@ curl -X POST http://localhost:8080/hook/github-push \
   -d '{"ref": "refs/heads/main", ...}'
 ```
 
+
 ## Testing
 
 Run the test suite using `go test`. Note that integration tests require CGO enabled for SQLite.
@@ -179,9 +192,11 @@ To run only unit tests (skipping tests that might require external setups or hea
 go test -short ./...
 ```
 
+
 ## License
 
 [MIT License](LICENSE)
+
 
 ## Contributing
 
