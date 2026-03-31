@@ -22,6 +22,8 @@ type Repository interface {
 	ListRules(ctx context.Context) ([]models.Rule, error)
 	DeleteRule(ctx context.Context, id string) error
 	SaveDelivery(ctx context.Context, d models.Delivery) error
+	GetDeliveryByID(ctx context.Context, id string) (*models.Delivery, error)
+	UpdateDeliveryStatus(ctx context.Context, id string, status string, err string) error
 	ListDeliveriesByRule(ctx context.Context, ruleID string, limit int) ([]models.Delivery, error)
 }
 
@@ -61,6 +63,7 @@ func NewSQLiteRepo(db *sql.DB, masterKey string) (*SQLiteRepo, error) {
 		rule_id TEXT NOT NULL,
 		created_at INTEGER NOT NULL,
 		success INTEGER NOT NULL,
+		status TEXT NOT NULL DEFAULT 'pending',
 		status_code INTEGER,
 		error_message TEXT,
 		duration_ms INTEGER NOT NULL,
@@ -81,11 +84,27 @@ func NewSQLiteRepo(db *sql.DB, masterKey string) (*SQLiteRepo, error) {
 }
 
 func (r *SQLiteRepo) migrateLegacyColumns() error {
-	// Best-effort ALTERs for DBs created before new columns existed.
+	// --- Best-effort ALTERs for DBs created before new columns existed ---
 	alters := []string{
 		`ALTER TABLE rules ADD COLUMN signature_format TEXT DEFAULT 'hex';`,
 		`ALTER TABLE rules ADD COLUMN signature_timestamp_header TEXT DEFAULT '';`,
 		`ALTER TABLE rules ADD COLUMN signature_max_skew_seconds INTEGER DEFAULT 0;`,
+		// --- Fan-out: JSON array of destination objects ---
+		`ALTER TABLE rules ADD COLUMN destinations TEXT DEFAULT '';`,
+		// --- Conditional routing: JSON array of condition rules ---
+		`ALTER TABLE rules ADD COLUMN conditions TEXT DEFAULT '';`,
+		// --- Pipeline: JSON array of transformation steps ---
+		`ALTER TABLE rules ADD COLUMN transform_steps TEXT DEFAULT '';`,
+		// --- Per-rule rate limiting ---
+		`ALTER TABLE rules ADD COLUMN rate_limit_max INTEGER DEFAULT 0;`,
+		`ALTER TABLE rules ADD COLUMN rate_limit_window TEXT DEFAULT '';`,
+		// --- Per-rule IP allowlist (JSON array of CIDR strings) ---
+		`ALTER TABLE rules ADD COLUMN ip_allowlist TEXT DEFAULT '';`,
+		// --- Delivery status column for existing databases ---
+		`ALTER TABLE deliveries ADD COLUMN status TEXT NOT NULL DEFAULT 'pending';`,
+		// --- Batch 2: Delivery replay payload capture ---
+		`ALTER TABLE deliveries ADD COLUMN request_body BLOB;`,
+		`ALTER TABLE deliveries ADD COLUMN request_path TEXT DEFAULT '';`,
 	}
 	for _, q := range alters {
 		if _, err := r.db.Exec(q); err != nil {
@@ -141,6 +160,7 @@ func (r *SQLiteRepo) decodeDestinationHeaders(raw string) (map[string]string, er
 	return m, nil
 }
 
+// --- SaveRule persists a rule with all legacy and new fields ---
 func (r *SQLiteRepo) SaveRule(ctx context.Context, rule models.Rule) error {
 	headersStored, err := r.encodeDestinationHeaders(rule.DestinationHeaders)
 	if err != nil {
@@ -149,13 +169,22 @@ func (r *SQLiteRepo) SaveRule(ctx context.Context, rule models.Rule) error {
 	if rule.SignatureFormat == "" {
 		rule.SignatureFormat = "hex"
 	}
+
+	// --- Serialize new JSON columns ---
+	destJSON := encodeJSON(rule.Destinations)
+	condJSON := encodeJSON(rule.Conditions)
+	stepsJSON := encodeJSON(rule.TransformSteps)
+	allowlistJSON := encodeJSON(rule.IPAllowlist)
+
 	query := `
 		INSERT INTO rules (
 			id, name, description, listen_path, required_signature,
 			signature_header, signature_format, signature_timestamp_header, signature_max_skew_seconds,
 			signature_secret, transform_template,
-			destination_url, destination_method, destination_headers
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			destination_url, destination_method, destination_headers,
+			destinations, conditions, transform_steps,
+			rate_limit_max, rate_limit_window, ip_allowlist
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			name=excluded.name,
 			description=excluded.description,
@@ -169,25 +198,52 @@ func (r *SQLiteRepo) SaveRule(ctx context.Context, rule models.Rule) error {
 			transform_template=excluded.transform_template,
 			destination_url=excluded.destination_url,
 			destination_method=excluded.destination_method,
-			destination_headers=excluded.destination_headers;
+			destination_headers=excluded.destination_headers,
+			destinations=excluded.destinations,
+			conditions=excluded.conditions,
+			transform_steps=excluded.transform_steps,
+			rate_limit_max=excluded.rate_limit_max,
+			rate_limit_window=excluded.rate_limit_window,
+			ip_allowlist=excluded.ip_allowlist;
 	`
 	_, err = r.db.ExecContext(ctx, query,
 		rule.ID, rule.Name, rule.Description, rule.ListenPath, rule.RequiredSignature,
 		rule.SignatureHeader, rule.SignatureFormat, rule.SignatureTimestampHeader, rule.SignatureMaxSkewSeconds,
 		rule.SignatureSecret, rule.TransformTemplate,
 		rule.DestinationURL, rule.DestinationMethod, headersStored,
+		destJSON, condJSON, stepsJSON,
+		rule.RateLimitMax, rule.RateLimitWindow, allowlistJSON,
 	)
 	return err
 }
 
+// --- encodeJSON serializes any value to a JSON string; returns "" on nil/empty ---
+func encodeJSON(v interface{}) string {
+	if v == nil {
+		return ""
+	}
+	b, err := json.Marshal(v)
+	if err != nil {
+		return ""
+	}
+	s := string(b)
+	if s == "null" || s == "[]" {
+		return ""
+	}
+	return s
+}
+
+// --- scanRule decodes a single rule row including new JSON columns ---
 func (r *SQLiteRepo) scanRule(row *sql.Row) (*models.Rule, error) {
 	var rule models.Rule
-	var headersRaw string
+	var headersRaw, destRaw, condRaw, stepsRaw, allowlistRaw string
 	err := row.Scan(
 		&rule.ID, &rule.Name, &rule.Description, &rule.ListenPath, &rule.RequiredSignature,
 		&rule.SignatureHeader, &rule.SignatureFormat, &rule.SignatureTimestampHeader, &rule.SignatureMaxSkewSeconds,
 		&rule.SignatureSecret, &rule.TransformTemplate,
 		&rule.DestinationURL, &rule.DestinationMethod, &headersRaw,
+		&destRaw, &condRaw, &stepsRaw,
+		&rule.RateLimitMax, &rule.RateLimitWindow, &allowlistRaw,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -203,12 +259,30 @@ func (r *SQLiteRepo) scanRule(row *sql.Row) (*models.Rule, error) {
 		return nil, err
 	}
 	rule.DestinationHeaders = h
+
+	// --- Decode new JSON fields ---
+	decodeJSON(destRaw, &rule.Destinations)
+	decodeJSON(condRaw, &rule.Conditions)
+	decodeJSON(stepsRaw, &rule.TransformSteps)
+	decodeJSON(allowlistRaw, &rule.IPAllowlist)
+
 	return &rule, nil
 }
 
+// --- decodeJSON unmarshals a JSON string into the target; ignores empty/null ---
+func decodeJSON(raw string, target interface{}) {
+	if raw == "" || raw == "null" || raw == "[]" {
+		return
+	}
+	_ = json.Unmarshal([]byte(raw), target)
+}
+
+// --- ruleSelect lists all columns including new ones ---
 const ruleSelect = `SELECT id, name, description, listen_path, required_signature,
 	signature_header, signature_format, signature_timestamp_header, signature_max_skew_seconds,
-	signature_secret, transform_template, destination_url, destination_method, destination_headers
+	signature_secret, transform_template, destination_url, destination_method, destination_headers,
+	destinations, conditions, transform_steps,
+	rate_limit_max, rate_limit_window, ip_allowlist
 	FROM rules`
 
 func (r *SQLiteRepo) GetRuleByPath(ctx context.Context, path string) (*models.Rule, error) {
@@ -228,15 +302,18 @@ func (r *SQLiteRepo) ListRules(ctx context.Context) ([]models.Rule, error) {
 	}
 	defer rows.Close()
 
+	// --- Scan all rows including new fan-out and routing columns ---
 	var out []models.Rule
 	for rows.Next() {
 		var rule models.Rule
-		var headersRaw string
+		var headersRaw, destRaw, condRaw, stepsRaw, allowlistRaw string
 		if err := rows.Scan(
 			&rule.ID, &rule.Name, &rule.Description, &rule.ListenPath, &rule.RequiredSignature,
 			&rule.SignatureHeader, &rule.SignatureFormat, &rule.SignatureTimestampHeader, &rule.SignatureMaxSkewSeconds,
 			&rule.SignatureSecret, &rule.TransformTemplate,
 			&rule.DestinationURL, &rule.DestinationMethod, &headersRaw,
+			&destRaw, &condRaw, &stepsRaw,
+			&rule.RateLimitMax, &rule.RateLimitWindow, &allowlistRaw,
 		); err != nil {
 			return nil, err
 		}
@@ -248,6 +325,10 @@ func (r *SQLiteRepo) ListRules(ctx context.Context) ([]models.Rule, error) {
 			return nil, err
 		}
 		rule.DestinationHeaders = h
+		decodeJSON(destRaw, &rule.Destinations)
+		decodeJSON(condRaw, &rule.Conditions)
+		decodeJSON(stepsRaw, &rule.TransformSteps)
+		decodeJSON(allowlistRaw, &rule.IPAllowlist)
 		out = append(out, rule)
 	}
 	return out, rows.Err()
@@ -269,11 +350,32 @@ func (r *SQLiteRepo) DeleteRule(ctx context.Context, id string) error {
 }
 
 func (r *SQLiteRepo) SaveDelivery(ctx context.Context, d models.Delivery) error {
+	if d.Status == "" {
+		d.Status = models.StatusPending
+	}
 	_, err := r.db.ExecContext(ctx, `
-		INSERT INTO deliveries (id, rule_id, created_at, success, status_code, error_message, duration_ms, retry_count)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-		d.ID, d.RuleID, d.CreatedAt, boolToInt(d.Success), d.StatusCode, d.ErrorMsg, d.DurationMS, d.RetryCount,
+		INSERT INTO deliveries (
+			id, rule_id, created_at, success, status, status_code, error_message, duration_ms, retry_count,
+			request_body, request_path
+		)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT(id) DO UPDATE SET
+			success=excluded.success,
+			status=excluded.status,
+			status_code=excluded.status_code,
+			error_message=excluded.error_message,
+			duration_ms=excluded.duration_ms,
+			retry_count=excluded.retry_count,
+			request_body=excluded.request_body,
+			request_path=excluded.request_path`,
+		d.ID, d.RuleID, d.CreatedAt, boolToInt(d.Success), d.Status, d.StatusCode, d.ErrorMsg, d.DurationMS, d.RetryCount,
+		d.RequestBody, d.RequestPath,
 	)
+	return err
+}
+
+func (r *SQLiteRepo) UpdateDeliveryStatus(ctx context.Context, id string, status string, errMsg string) error {
+	_, err := r.db.ExecContext(ctx, `UPDATE deliveries SET status = ?, error_message = ? WHERE id = ?`, status, errMsg, id)
 	return err
 }
 
@@ -292,7 +394,7 @@ func (r *SQLiteRepo) ListDeliveriesByRule(ctx context.Context, ruleID string, li
 		limit = 500
 	}
 	rows, err := r.db.QueryContext(ctx, `
-		SELECT id, rule_id, created_at, success, status_code, error_message, duration_ms, retry_count
+		SELECT id, rule_id, created_at, success, status, status_code, error_message, duration_ms, retry_count, request_body, request_path
 		FROM deliveries WHERE rule_id = ? ORDER BY created_at DESC LIMIT ?`,
 		ruleID, limit,
 	)
@@ -305,11 +407,31 @@ func (r *SQLiteRepo) ListDeliveriesByRule(ctx context.Context, ruleID string, li
 	for rows.Next() {
 		var d models.Delivery
 		var successInt int
-		if err := rows.Scan(&d.ID, &d.RuleID, &d.CreatedAt, &successInt, &d.StatusCode, &d.ErrorMsg, &d.DurationMS, &d.RetryCount); err != nil {
+		if err := rows.Scan(&d.ID, &d.RuleID, &d.CreatedAt, &successInt, &d.Status, &d.StatusCode, &d.ErrorMsg, &d.DurationMS, &d.RetryCount, &d.RequestBody, &d.RequestPath); err != nil {
 			return nil, err
 		}
-		d.Success = successInt != 0
+		d.Success = successInt == 1
 		out = append(out, d)
 	}
 	return out, rows.Err()
+}
+
+// GetDeliveryByID fetches a specific delivery including its captured request body.
+func (r *SQLiteRepo) GetDeliveryByID(ctx context.Context, id string) (*models.Delivery, error) {
+	var d models.Delivery
+	var successInt int
+	err := r.db.QueryRowContext(ctx, `
+		SELECT id, rule_id, created_at, success, status, status_code, error_message, duration_ms, retry_count, request_body, request_path
+		FROM deliveries WHERE id = ? LIMIT 1`,
+		id,
+	).Scan(&d.ID, &d.RuleID, &d.CreatedAt, &successInt, &d.Status, &d.StatusCode, &d.ErrorMsg, &d.DurationMS, &d.RetryCount, &d.RequestBody, &d.RequestPath)
+	
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil // Return nil for not found instead of error for service matching
+		}
+		return nil, err
+	}
+	d.Success = successInt == 1
+	return &d, nil
 }
