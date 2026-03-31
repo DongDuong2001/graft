@@ -8,7 +8,12 @@ import (
 	"strings"
 	"testing"
 
+	"time"
+
 	"Graft/internal/admin"
+	"Graft/internal/connectors"
+	"Graft/internal/engine"
+	"Graft/internal/forwarder"
 	"Graft/internal/middleware"
 	"Graft/internal/models"
 	"Graft/internal/testutil"
@@ -19,7 +24,9 @@ func adminMux(t *testing.T) (http.Handler, string) {
 	repo := testutil.SQLiteRepo(t)
 	const adminKey = "unit-test-admin-key-string!!"
 	svc := admin.NewService(repo, testutil.MasterKey)
-	h := NewAdminHandler(svc)
+	fwd := forwarder.NewSyncForwarder(connectors.NewHTTPForwarder(connectors.HTTPConfig{Timeout: time.Second, MaxRetries: 0}))
+	eng := engine.New(repo, testutil.MasterKey, fwd, connectors.NewRegistry(nil))
+	h := NewAdminHandler(svc, eng)
 	mux := http.NewServeMux()
 	h.Register(mux)
 	return middleware.AdminAuth(adminKey, mux), adminKey

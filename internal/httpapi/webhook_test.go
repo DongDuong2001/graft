@@ -22,8 +22,9 @@ func TestWebhookHandler_MethodNotAllowed(t *testing.T) {
 	observability.ResetCountersForTest()
 	repo := testutil.SQLiteRepo(t)
 	fwd := forwarder.NewSyncForwarder(connectors.NewHTTPForwarder(connectors.HTTPConfig{Timeout: time.Second, MaxRetries: 0}))
-	eng := engine.New(repo, testutil.MasterKey, fwd)
-	h := NewWebhookHandler(eng)
+	eng := engine.New(repo, testutil.MasterKey, fwd, connectors.NewRegistry(nil))
+	q := engine.NewMemoryQueue(10)
+	h := NewWebhookHandler(eng, q)
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/hook/x", nil))
 	if rec.Code != http.StatusMethodNotAllowed {
@@ -35,8 +36,9 @@ func TestWebhookHandler_NotFound(t *testing.T) {
 	observability.ResetCountersForTest()
 	repo := testutil.SQLiteRepo(t)
 	fwd := forwarder.NewSyncForwarder(connectors.NewHTTPForwarder(connectors.HTTPConfig{Timeout: time.Second, MaxRetries: 0}))
-	eng := engine.New(repo, testutil.MasterKey, fwd)
-	h := NewWebhookHandler(eng)
+	eng := engine.New(repo, testutil.MasterKey, fwd, connectors.NewRegistry(nil))
+	q := engine.NewMemoryQueue(10)
+	h := NewWebhookHandler(eng, q)
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/hook/missing", strings.NewReader(`{}`)))
 	if rec.Code != http.StatusNotFound {
@@ -68,15 +70,16 @@ func TestWebhookHandler_Delivers(t *testing.T) {
 	}
 
 	fwd := forwarder.NewSyncForwarder(connectors.NewHTTPForwarder(connectors.HTTPConfig{Timeout: 3 * time.Second, MaxRetries: 0}))
-	eng := engine.New(repo, testutil.MasterKey, fwd)
-	h := NewWebhookHandler(eng)
+	eng := engine.New(repo, testutil.MasterKey, fwd, connectors.NewRegistry(nil))
+	q := engine.NewMemoryQueue(10)
+	h := NewWebhookHandler(eng, q)
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/hook/w", bytes.NewReader([]byte(`{"p":1}`))))
 
-	if rec.Code != http.StatusOK {
+	if rec.Code != http.StatusAccepted {
 		t.Fatalf("code %d: %s", rec.Code, rec.Body.String())
 	}
-	if !strings.Contains(rec.Body.String(), "delivered") {
+	if !strings.Contains(rec.Body.String(), "accepted") {
 		t.Fatal(rec.Body.String())
 	}
 }

@@ -2,6 +2,7 @@ package integration
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"io"
@@ -45,14 +46,21 @@ func TestAdminCreateAndWebhookForward(t *testing.T) {
 
 	const adminKey = "integration-test-admin-key-32chars!!"
 	svc := admin.NewService(repo, testutil.MasterKey)
-	adminH := httpapi.NewAdminHandler(svc)
-	adminMux := http.NewServeMux()
-	adminH.Register(adminMux)
 
 	httpFwd := connectors.NewHTTPForwarder(connectors.HTTPConfig{Timeout: 5 * time.Second, MaxRetries: 0})
 	fwd := forwarder.NewSyncForwarder(httpFwd)
-	eng := engine.New(repo, testutil.MasterKey, fwd)
-	wh := httpapi.NewWebhookHandler(eng)
+	eng := engine.New(repo, testutil.MasterKey, fwd, connectors.NewRegistry(nil))
+
+	adminH := httpapi.NewAdminHandler(svc, eng)
+	adminMux := http.NewServeMux()
+	adminH.Register(adminMux)
+
+	q := engine.NewMemoryQueue(100)
+	wp := engine.NewWorkerPool(q, eng, 2)
+	wp.Start(context.Background())
+	t.Cleanup(wp.Stop)
+
+	wh := httpapi.NewWebhookHandler(eng, q)
 
 	mainMux := router.NewRootMux(router.Config{
 		WebhookHandler: wh,
@@ -93,7 +101,7 @@ func TestAdminCreateAndWebhookForward(t *testing.T) {
 	whReq.Header.Set("Content-Type", "application/json")
 	whRec := httptest.NewRecorder()
 	mainMux.ServeHTTP(whRec, whReq)
-	if whRec.Code != http.StatusOK {
+	if whRec.Code != http.StatusAccepted {
 		t.Fatalf("webhook: status %d body %s", whRec.Code, whRec.Body.String())
 	}
 
