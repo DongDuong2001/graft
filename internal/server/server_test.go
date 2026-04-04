@@ -16,7 +16,7 @@ func TestNewHTTPServer_Addr(t *testing.T) {
 	}
 	cfg.Port = "9999"
 
-	s := NewHTTPServer(cfg, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	s := NewHTTPServer(cfg, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}), nil)
 	if s.Addr() != ":9999" {
 		t.Fatalf("addr %q", s.Addr())
 	}
