@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"net/http"
 
@@ -10,13 +11,17 @@ import (
 
 // HTTPServer wraps net/http.Server with Graft defaults from config.
 type HTTPServer struct {
-	srv *http.Server
+	srv  *http.Server
+	addr string
+	tls  *tls.Config
 }
 
 // NewHTTPServer builds an HTTP server listening on cfg.Port.
-func NewHTTPServer(cfg config.Config, handler http.Handler) *HTTPServer {
+func NewHTTPServer(cfg config.Config, handler http.Handler, tlsConfig *tls.Config) *HTTPServer {
 	addr := ":" + cfg.Port
 	return &HTTPServer{
+		addr: addr,
+		tls:  tlsConfig,
 		srv: &http.Server{
 			Addr:              addr,
 			Handler:           handler,
@@ -24,6 +29,7 @@ func NewHTTPServer(cfg config.Config, handler http.Handler) *HTTPServer {
 			ReadTimeout:       cfg.ReadTimeout,
 			WriteTimeout:      cfg.WriteTimeout,
 			IdleTimeout:       cfg.IdleTimeout,
+			TLSConfig:         tlsConfig,
 		},
 	}
 }
@@ -33,10 +39,21 @@ func (s *HTTPServer) Addr() string {
 	return s.srv.Addr
 }
 
+// IsTLS returns true if the server is configured for TLS.
+func (s *HTTPServer) IsTLS() bool {
+	return s.tls != nil
+}
+
 // ListenAndServe starts the server (blocks).
 func (s *HTTPServer) ListenAndServe() error {
-	if err := s.srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		return fmt.Errorf("http server: %w", err)
+	if s.tls != nil {
+		if err := s.srv.ListenAndServeTLS("", ""); err != nil && err != http.ErrServerClosed {
+			return fmt.Errorf("https server: %w", err)
+		}
+	} else {
+		if err := s.srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			return fmt.Errorf("http server: %w", err)
+		}
 	}
 	return nil
 }
