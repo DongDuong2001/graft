@@ -16,11 +16,11 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 
 	"Graft/internal/admin"
+	"Graft/internal/config"
 	"Graft/internal/connectors"
 	"Graft/internal/engine"
 	"Graft/internal/forwarder"
 	"Graft/internal/httpapi"
-	"Graft/internal/middleware"
 	"Graft/internal/router"
 	"Graft/internal/storage"
 	"Graft/internal/testutil"
@@ -66,7 +66,7 @@ func TestAdminCreateAndWebhookForward(t *testing.T) {
 		WebhookHandler: wh,
 		AdminInner:     adminMux,
 		AdminAPIKey:    adminKey,
-		RateLimiter:    middleware.NewFixedWindowLimiter(1000, time.Minute, false),
+		Security:       router.BuildSecurityConfig(config.Config{}),
 	})
 
 	destReceived := make(chan []byte, 1)
