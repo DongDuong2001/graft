@@ -5,9 +5,8 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
-	"time"
 
-	"Graft/internal/middleware"
+	"Graft/internal/config"
 )
 
 func TestNewRootMux_Healthz(t *testing.T) {
@@ -23,7 +22,7 @@ func TestNewRootMux_Healthz(t *testing.T) {
 		WebhookHandler: dummy,
 		AdminInner:     inner,
 		AdminAPIKey:    "k",
-		RateLimiter:    middleware.NewFixedWindowLimiter(10, time.Minute, false),
+		Security:       BuildSecurityConfig(config.Config{}),
 	})
 
 	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
