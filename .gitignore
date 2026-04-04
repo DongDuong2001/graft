@@ -25,6 +25,9 @@ bin/
 .vscode/
 .DS_Store
 
+# Claude Code local settings
+.claude/
+
 # Temporary files
 *.swp
 *.log
