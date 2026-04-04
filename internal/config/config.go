@@ -37,15 +37,15 @@ type Config struct {
 	CORSCredentials bool
 
 	// TLS
-	TLSEnabled     bool
-	TLSCertFile    string
-	TLSKeyFile     string
-	TLSAutoGen     bool
-	TLSAutoGenDir  string
+	TLSEnabled    bool
+	TLSCertFile   string
+	TLSKeyFile    string
+	TLSAutoGen    bool
+	TLSAutoGenDir string
 
 	// Audit logging
-	AuditEnabled   bool
-	AuditFilePath  string
+	AuditEnabled     bool
+	AuditFilePath    string
 	AuditMinSeverity string
 
 	ReadHeaderTimeout time.Duration
@@ -64,10 +64,10 @@ func Load() (Config, error) {
 		ForwardRetryBase:  durationOr("FORWARD_RETRY_BASE", 200*time.Millisecond),
 
 		// Rate limiting defaults (token bucket)
-		RateLimitMax:      intOr("RATE_LIMIT_MAX", 100),
-		RateLimitWindow:   durationOr("RATE_LIMIT_WINDOW", time.Minute),
-		RateLimitBurst:    intOr("RATE_LIMIT_BURST", 20),
-		RateLimitRefill:   float64(intOr("RATE_LIMIT_REFILL_PER_SEC", 10)),
+		RateLimitMax:    intOr("RATE_LIMIT_MAX", 100),
+		RateLimitWindow: durationOr("RATE_LIMIT_WINDOW", time.Minute),
+		RateLimitBurst:  intOr("RATE_LIMIT_BURST", 20),
+		RateLimitRefill: float64(intOr("RATE_LIMIT_REFILL_PER_SEC", 10)),
 
 		// Brute force protection defaults
 		BruteForceMaxFailures: intOr("BRUTE_FORCE_MAX_FAILURES", 5),
