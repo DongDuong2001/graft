@@ -5,33 +5,27 @@ import (
 	"net/http"
 	"sync"
 	"time"
+
+	"Graft/internal/security"
+	"Graft/internal/utils"
 )
 
 // IPAllowlistMiddleware only allows requests from specific IP addresses.
+// Supports CIDR notation (e.g., "192.168.0.0/24") and individual IPs.
 func IPAllowlistMiddleware(allowedIPs []string) func(http.Handler) http.Handler {
-	allowedMap := make(map[string]bool)
-	for _, ip := range allowedIPs {
-		allowedMap[ip] = true
-	}
-
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if len(allowedIPs) == 0 {
-				next.ServeHTTP(w, r)
-				return
-			}
-
-			clientIP := ClientIP(r, true)
-
-			if !allowedMap[clientIP] {
-				slog.Warn("Blocked request from disallowed IP", "ip", clientIP)
+	// Use the new CIDR-aware implementation
+	allowlist, err := security.NewCIDRAllowlist(allowedIPs, true)
+	if err != nil {
+		// If invalid CIDRs provided, log and deny all
+		slog.Error("Invalid CIDR in allowlist", "error", err)
+		return func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, "Forbidden", http.StatusForbidden)
-				return
-			}
-
-			next.ServeHTTP(w, r)
-		})
+			})
+		}
 	}
+
+	return allowlist.Middleware
 }
 
 // SimpleRateLimiter implements a naive token bucket per IP address.
@@ -73,7 +67,7 @@ func NewSimpleRateLimiter(maxRequests int, window time.Duration) *SimpleRateLimi
 // RateLimitMiddleware applies the rate Limiter.
 func (rl *SimpleRateLimiter) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		clientIP := ClientIP(r, true)
+		clientIP := utils.ClientIP(r, true)
 
 		rl.mu.Lock()
 		rl.lastRequest[clientIP] = time.Now()
