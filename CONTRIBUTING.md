@@ -68,7 +68,7 @@ Security is paramount for this project.
 1. **Fork the repo** and create your branch from `main`.
 2. **Make your changes**, adhering to the standards above.
 3. **Add or update tests** to cover your changes.
-4. **Ensure the CI suite passes locally** (`make test`, `make vet`, `go fmt`).
+4. **Ensure the CI suite passes locally** (`make test`, `make vet`, `make lint`, `make fmt`).
 5. **Open a Pull Request** with a detailed description.
 
 By contributing, you agree that your contributions will be licensed under the MIT License of this project.
