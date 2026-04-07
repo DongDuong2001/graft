@@ -6,7 +6,7 @@ services:
     ports:
       - "${PORT:-8080}:8080"
     env_file:
-      - ../configs/example.env
+      - ../.env
     environment:
       DB_PATH: /data/rules.db
     volumes:
