@@ -80,12 +80,37 @@ openssl rand -hex 32
 
 If you have `make` installed, you can use the provided `Makefile` for common tasks:
 
+- `make setup`: Generate `.env` from the example and create random keys.
 - `make build`: Build the binary to `bin/graft`.
 - `make run`: Run the application.
 - `make test`: Run all tests.
+- `make fmt`: Format code.
+- `make lint`: Run golangci-lint.
 - `make vet`: Run go vet.
 - `make docker-build`: Build the Docker image.
+- `make docker-up`: Start containers in detached mode.
+- `make docker-down`: Stop containers.
+- `make docker-logs`: Follow Docker logs.
 - `make clean`: Clean build artifacts.
+
+### Graft CLI Tools
+
+Graft has a built-in CLI powered by [Cobra](https://github.com/spf13/cobra). Running `graft` without arguments runs the webhook bridge, but it also has other commands:
+
+- `graft start`: (Default) Starts the webhook bridge.
+- `graft version`: Prints the current version, commit hash, and build date.
+- `graft docs <output-dir>`: Autogenerates markdown documentation for the CLI in the specified directory.
+- `graft completion <shell>`: Generates auto-completion scripts for your shell.
+
+*(Note: If you build with `make`, version details are automatically injected into the binary into the `version` command)*
+
+## Cross-Platform Compilation
+
+Need to build Graft for a different OS? Use the `build-all` target:
+```bash
+make build-all
+```
+This builds standard binaries for Linux, macOS, and Windows (amd64/arm64) and places them in the `bin/` directory.
 
 ### Manual Steps
 
@@ -96,8 +121,11 @@ If you have `make` installed, you can use the provided `Makefile` for common tas
     ```
 
 2.  **Set up environment:**
-    Copy `configs/example.env` to `.env` and fill in the values.
+    If you're using `make`, just run `make setup`.
+    Otherwise, copy `configs/example.env` to `.env` and fill in the values randomly.
     ```bash
+    cp configs/example.env .env
+    ```
     cp configs/example.env .env
     # Edit .env to set MASTER_KEY and ADMIN_API_KEY
     ```
