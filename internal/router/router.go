@@ -12,13 +12,13 @@ import (
 
 // SecurityConfig bundles all security-related middleware configuration.
 type SecurityConfig struct {
-	DevMode                bool
-	CORSOrigins            []string
-	CORSCredentials      bool
-	WebhookRateLimiter   *ratelimit.TokenBucket
-	AdminRateLimiter     *ratelimit.TokenBucket
-	BruteForceProtector  *security.BruteForceProtector
-	SecurityHeaders      security.SecurityHeaders
+	DevMode             bool
+	CORSOrigins         []string
+	CORSCredentials     bool
+	WebhookRateLimiter  *ratelimit.TokenBucket
+	AdminRateLimiter    *ratelimit.TokenBucket
+	BruteForceProtector *security.BruteForceProtector
+	SecurityHeaders     security.SecurityHeaders
 }
 
 // Config wires the public HTTP route tree (health, webhooks, admin API).
