@@ -15,8 +15,8 @@ import (
 type TokenBucket struct {
 	mu         sync.RWMutex
 	buckets    map[string]*bucket
-	refillRate float64    // tokens per second
-	capacity   int        // max tokens per bucket
+	refillRate float64 // tokens per second
+	capacity   int     // max tokens per bucket
 	trustProxy bool
 
 	// cleanupInterval controls how often we remove stale buckets
@@ -31,8 +31,10 @@ type bucket struct {
 }
 
 // NewTokenBucket creates a token bucket limiter.
-//   capacity: max burst size (bucket size)
-//   refillPerSecond: steady-state rate limit (tokens per second)
+//
+//	capacity: max burst size (bucket size)
+//	refillPerSecond: steady-state rate limit (tokens per second)
+//
 // Example: capacity=10, refillPerSecond=1 means burst of 10, then 1/sec.
 func NewTokenBucket(capacity int, refillPerSecond float64, trustForwardedFor bool) *TokenBucket {
 	if capacity < 1 {
@@ -159,12 +161,12 @@ func (tb *TokenBucket) Middleware(next http.Handler) http.Handler {
 // RateLimiterConfig configures rate limiting for different endpoints.
 type RateLimiterConfig struct {
 	// Webhook capacity and refill rate (burst/avg)
-	WebhookCapacity      int
-	WebhookRefillPerSec  float64
+	WebhookCapacity     int
+	WebhookRefillPerSec float64
 	// Admin capacity and refill rate (more restrictive)
-	AdminCapacity       int
-	AdminRefillPerSec   float64
-	TrustForwardedFor   bool
+	AdminCapacity     int
+	AdminRefillPerSec float64
+	TrustForwardedFor bool
 }
 
 // DefaultRateLimiterConfig returns a sensible default configuration.
