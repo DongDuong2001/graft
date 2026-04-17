@@ -15,11 +15,11 @@ import (
 
 	"Graft/internal/admin"
 	"Graft/internal/config"
-	"Graft/internal/observability"
 	"Graft/internal/connectors"
 	"Graft/internal/engine"
 	"Graft/internal/forwarder"
 	"Graft/internal/httpapi"
+	"Graft/internal/observability"
 	"Graft/internal/router"
 	"Graft/internal/server"
 	"Graft/internal/storage"
@@ -36,9 +36,9 @@ func Run() error {
 
 	// Initialize observability logging
 	observabilityConfig := observability.Config{
-		Enabled:      cfg.AuditEnabled,
-		FilePath:     cfg.AuditFilePath,
-		MinSeverity:  cfg.AuditMinSeverity,
+		Enabled:     cfg.AuditEnabled,
+		FilePath:    cfg.AuditFilePath,
+		MinSeverity: cfg.AuditMinSeverity,
 	}
 	observabilityLogger, err := observability.NewLogger(observabilityConfig)
 	if err != nil {
@@ -70,15 +70,23 @@ func Run() error {
 	fwd := forwarder.NewSyncForwarder(httpFwd)
 
 	// --- Initialize Native Connector Registry ---
-	// TODO: Get email config from the environment/cfg in a future batch
-	registry := connectors.NewRegistry(nil)
+	var emailConnector *connectors.EmailConnector
+	if cfg.SMTPHost != "" {
+		emailConnector = connectors.NewEmailConnector(
+			cfg.SMTPHost,
+			cfg.SMTPUsername,
+			cfg.SMTPPassword,
+			cfg.SMTPFrom,
+		)
+	}
+	registry := connectors.NewRegistry(emailConnector)
 
 	eng := engine.New(repo, cfg.MasterKey, fwd, registry)
 	admService := admin.NewService(repo, cfg.MasterKey)
 
 	// Phase 1: Initialize Queue and Worker Pool
-	queue := engine.NewMemoryQueue(1024)
-	workerPool := engine.NewWorkerPool(queue, eng, 4) // Configurable worker count?
+	queue := engine.NewMemoryQueue(cfg.QueueSize)
+	workerPool := engine.NewWorkerPool(queue, eng, cfg.WorkerCount)
 	workerPool.Start(context.Background())
 
 	wh := httpapi.NewWebhookHandler(eng, queue)
