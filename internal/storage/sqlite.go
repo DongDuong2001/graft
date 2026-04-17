@@ -425,7 +425,7 @@ func (r *SQLiteRepo) GetDeliveryByID(ctx context.Context, id string) (*models.De
 		FROM deliveries WHERE id = ? LIMIT 1`,
 		id,
 	).Scan(&d.ID, &d.RuleID, &d.CreatedAt, &successInt, &d.Status, &d.StatusCode, &d.ErrorMsg, &d.DurationMS, &d.RetryCount, &d.RequestBody, &d.RequestPath)
-	
+
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil // Return nil for not found instead of error for service matching
