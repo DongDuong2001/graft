@@ -261,7 +261,7 @@ func (h *AdminHandler) replayDelivery(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	id := r.PathValue("id")
-	
+
 	d, err := h.eng.ReplayDelivery(r.Context(), id)
 	if err != nil {
 		if errors.Is(err, models.ErrRuleNotFound) {
@@ -275,10 +275,9 @@ func (h *AdminHandler) replayDelivery(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Internal Server Error: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	
+
 	writeJSON(w, http.StatusOK, d)
 }
-
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
