@@ -56,15 +56,15 @@ func (wa *WebhookAPIKeyAuth) IsConfigured() bool {
 
 // WebhookAuthConfig combines all webhook authentication options.
 type WebhookAuthConfig struct {
-	RequireSignature        bool
-	SignatureHeader         string
-	SignatureFormat         string
-	SignatureSecret         string
+	RequireSignature         bool
+	SignatureHeader          string
+	SignatureFormat          string
+	SignatureSecret          string
 	SignatureTimestampHeader string
-	SignatureMaxSkewSeconds int
-	RequireAPIKey           bool
-	APIKeyHeader            string
-	APIKey                  string
+	SignatureMaxSkewSeconds  int
+	RequireAPIKey            bool
+	APIKeyHeader             string
+	APIKey                   string
 }
 
 // GetWebhookAuthMiddleware returns appropriate middleware for webhook auth.
