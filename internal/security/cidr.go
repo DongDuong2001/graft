@@ -23,8 +23,8 @@ type CIDRAllowlist struct {
 //   - "::1/128" (IPv6 localhost)
 func NewCIDRAllowlist(cidrs []string, trustForwardedFor bool) (*CIDRAllowlist, error) {
 	ca := &CIDRAllowlist{
-		allowedIPs:  make(map[string]bool),
-		trustProxy:  trustForwardedFor,
+		allowedIPs: make(map[string]bool),
+		trustProxy: trustForwardedFor,
 	}
 
 	for _, cidr := range cidrs {
