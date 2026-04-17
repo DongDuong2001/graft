@@ -53,9 +53,9 @@ func IsPrivateIP(ipStr string) bool {
 		"10.0.0.0/8",
 		"172.16.0.0/12",
 		"192.168.0.0/16",
-		"127.0.0.0/8",    // Loopback
-		"::1/128",        // IPv6 loopback
-		"fc00::/7",       // IPv6 unique local
+		"127.0.0.0/8", // Loopback
+		"::1/128",     // IPv6 loopback
+		"fc00::/7",    // IPv6 unique local
 	}
 
 	for _, cidr := range privateRanges {
