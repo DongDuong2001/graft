@@ -13,27 +13,28 @@ import (
 // BruteForceProtector tracks failed authentication attempts per IP
 // and applies exponential backoff to prevent credential stuffing.
 type BruteForceProtector struct {
-	mu           sync.RWMutex
-	attempts     map[string]*authAttempt
-	maxFailures  int           // failures before lockout
-	lockoutBase  time.Duration // base lockout duration
-	maxLockout   time.Duration // maximum lockout duration
-	trustProxy   bool
+	mu          sync.RWMutex
+	attempts    map[string]*authAttempt
+	maxFailures int           // failures before lockout
+	lockoutBase time.Duration // base lockout duration
+	maxLockout  time.Duration // maximum lockout duration
+	trustProxy  bool
 
 	cleanupInterval time.Duration
 }
 
 // authAttempt tracks failure count and lockout state for an IP.
 type authAttempt struct {
-	failures   int
+	failures    int
 	lockedUntil time.Time
 	lastAttempt time.Time
 }
 
 // NewBruteForceProtector creates a new brute force protection instance.
-//   maxFailures: number of failures before lockout (default: 5)
-//   lockoutBase: initial lockout duration (default: 5 minutes)
-//   maxLockout: maximum lockout duration (default: 1 hour)
+//
+//	maxFailures: number of failures before lockout (default: 5)
+//	lockoutBase: initial lockout duration (default: 5 minutes)
+//	maxLockout: maximum lockout duration (default: 1 hour)
 func NewBruteForceProtector(maxFailures int, lockoutBase, maxLockout time.Duration, trustForwardedFor bool) *BruteForceProtector {
 	if maxFailures < 1 {
 		maxFailures = 5
