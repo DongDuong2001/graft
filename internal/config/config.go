@@ -52,6 +52,16 @@ type Config struct {
 	ReadTimeout       time.Duration
 	WriteTimeout      time.Duration
 	IdleTimeout       time.Duration
+
+	// Worker Pool & Queue
+	WorkerCount int
+	QueueSize   int
+
+	// Email Connector (SMTP)
+	SMTPHost     string
+	SMTPUsername string
+	SMTPPassword string
+	SMTPFrom     string
 }
 
 // Load reads configuration from environment variables and validates required fields.
@@ -74,8 +84,15 @@ func Load() (Config, error) {
 		BruteForceLockoutBase: durationOr("BRUTE_FORCE_LOCKOUT_BASE", 5*time.Minute),
 		BruteForceMaxLockout:  durationOr("BRUTE_FORCE_MAX_LOCKOUT", time.Hour),
 
-		// TLS defaults
 		TLSAutoGenDir: "./certs",
+
+		WorkerCount: intOr("WORKER_COUNT", 4),
+		QueueSize:   intOr("QUEUE_SIZE", 1024),
+
+		SMTPHost:     os.Getenv("SMTP_HOST"),
+		SMTPUsername: os.Getenv("SMTP_USERNAME"),
+		SMTPPassword: os.Getenv("SMTP_PASSWORD"),
+		SMTPFrom:     envOr("SMTP_FROM", "graft@localhost"),
 
 		ReadHeaderTimeout: durationOr("READ_HEADER_TIMEOUT", 10*time.Second),
 		ReadTimeout:       durationOr("READ_TIMEOUT", 30*time.Second),
