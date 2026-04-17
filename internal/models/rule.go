@@ -45,9 +45,9 @@ type Rule struct {
 	IPAllowlist []string `json:"ip_allowlist,omitempty"` // e.g. ["192.30.252.0/22", "185.199.108.0/22"]
 
 	// --- Optional webhook endpoint API key (for rules without signature verification) ---
-	RequireAPIKey   bool   `json:"require_api_key,omitempty"` // enable API key auth
-	APIKeyHeader    string `json:"api_key_header,omitempty"`  // default: "X-API-Key"
-	APIKey          string `json:"-"`                         // encrypted at rest; simple shared secret for the endpoint
+	RequireAPIKey bool   `json:"require_api_key,omitempty"` // enable API key auth
+	APIKeyHeader  string `json:"api_key_header,omitempty"`  // default: "X-API-Key"
+	APIKey        string `json:"-"`                         // encrypted at rest; simple shared secret for the endpoint
 }
 
 // ---------------------------------------------------------------------------
