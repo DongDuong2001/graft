@@ -18,17 +18,17 @@ const (
 	EventAuthLockout EventType = "auth.lockout"
 
 	// Access events
-	EventAccessDenied    EventType = "access.denied"
-	EventRateLimitHit    EventType = "ratelimit.hit"
-	EventIPBlocked       EventType = "ip.blocked"
-	EventCIDRBlocked     EventType = "cidr.blocked"
+	EventAccessDenied EventType = "access.denied"
+	EventRateLimitHit EventType = "ratelimit.hit"
+	EventIPBlocked    EventType = "ip.blocked"
+	EventCIDRBlocked  EventType = "cidr.blocked"
 
 	// Webhook events
-	EventWebhookReceived   EventType = "webhook.received"
-	EventWebhookDelivered  EventType = "webhook.delivered"
-	EventWebhookFailed     EventType = "webhook.failed"
-	EventSignatureInvalid  EventType = "signature.invalid"
-	EventReplayDetected    EventType = "replay.detected"
+	EventWebhookReceived  EventType = "webhook.received"
+	EventWebhookDelivered EventType = "webhook.delivered"
+	EventWebhookFailed    EventType = "webhook.failed"
+	EventSignatureInvalid EventType = "signature.invalid"
+	EventReplayDetected   EventType = "replay.detected"
 
 	// Rule events
 	EventRuleCreated EventType = "rule.created"
@@ -52,16 +52,16 @@ const (
 
 // Event represents a single audit log entry.
 type Event struct {
-	Timestamp   time.Time       `json:"timestamp"`
-	Type        EventType       `json:"type"`
-	Severity    Severity        `json:"severity"`
-	ClientIP    string          `json:"client_ip,omitempty"`
-	UserID      string          `json:"user_id,omitempty"`
-	Resource    string          `json:"resource,omitempty"`
-	Action      string          `json:"action,omitempty"`
-	Success     bool            `json:"success,omitempty"`
-	Details     json.RawMessage `json:"details,omitempty"`
-	RequestID   string          `json:"request_id,omitempty"`
+	Timestamp time.Time       `json:"timestamp"`
+	Type      EventType       `json:"type"`
+	Severity  Severity        `json:"severity"`
+	ClientIP  string          `json:"client_ip,omitempty"`
+	UserID    string          `json:"user_id,omitempty"`
+	Resource  string          `json:"resource,omitempty"`
+	Action    string          `json:"action,omitempty"`
+	Success   bool            `json:"success,omitempty"`
+	Details   json.RawMessage `json:"details,omitempty"`
+	RequestID string          `json:"request_id,omitempty"`
 }
 
 // Logger handles security audit logging.
