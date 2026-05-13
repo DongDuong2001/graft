@@ -220,6 +220,17 @@ To run only unit tests (skipping tests that might require external setups or hea
 go test -short ./...
 ```
 
+## AI-Assisted Workflow
+
+Graft uses the PUDO workflow for meaningful AI-assisted changes:
+
+1. **Plan** - define scope, constraints, success criteria, and risks.
+2. **Understand** - inspect the affected code, tests, and security surfaces before editing.
+3. **Develop** - implement in small steps and update tests with behavior changes.
+4. **Optimize** - self-review, verify, document, and summarize the final change.
+
+See [`AGENTS.md`](AGENTS.md), [`.agents/SKILL.md`](.agents/SKILL.md), and [`.agents/workflows/pudo.md`](.agents/workflows/pudo.md) for the project-specific instructions.
+
 
 ## License
 
