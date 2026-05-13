@@ -1,0 +1,30 @@
+# PUDO Methodology Rules for Graft
+
+Always use PUDO (Plan -> Understand -> Develop -> Optimize) for meaningful work in this repository.
+
+## 1. Plan
+
+- Do not jump straight into implementation for non-trivial tasks.
+- Define scope, out-of-scope work, success criteria, constraints, risks, and the intended implementation path.
+- For large updates, break the work into smaller PUDO cycles.
+
+## 2. Understand
+
+- Read the relevant code before editing.
+- Match existing Go, HTTP handler, storage, model, config, and test patterns.
+- Check security-sensitive surfaces: admin auth, webhook signatures, encrypted secrets, rate limits, and body handling.
+- Use `.agents/SKILL.md` and `.agents/workflows/pudo.md` as the source of truth for project workflow.
+
+## 3. Develop
+
+- Work step by step and keep progress visible.
+- Keep edits scoped to the task.
+- Add or update tests alongside behavior changes.
+- If the approach stops fitting the codebase, pause and return to Plan or Understand.
+
+## 4. Optimize
+
+- Self-review for readability, naming, duplication, error handling, security, and maintainability.
+- Run `go fmt ./...`, `go vet ./...`, and `go test ./...` after code changes when available.
+- Update docs when behavior, APIs, workflows, or release expectations change.
+- Finish with a concise walkthrough of what changed and why.
