@@ -1,5 +1,16 @@
 # Graft AI Coding Agent Guide
 
+## Default Workflow: PUDO
+
+Use PUDO for meaningful work in this repository:
+
+1. **Plan** - define scope, success criteria, constraints, risks, and the intended implementation path.
+2. **Understand** - inspect relevant files before editing and map the affected runtime, storage, API, and test paths.
+3. **Develop** - implement in small steps, keep progress visible, and update tests alongside behavior changes.
+4. **Optimize** - self-review, run verification, update docs when needed, and summarize the final change.
+
+For tiny tasks, compress the cycle into a brief note. For large tasks, use nested PUDO cycles by feature area. The full workflow lives in `.agents/workflows/pudo.md`.
+
 ## Big Picture Architecture
 Graft is a lightweight webhook bridge written in Go.
 - **Entry Point:** `cmd/graft/main.go` simply calls `internal/app.Run()`.
