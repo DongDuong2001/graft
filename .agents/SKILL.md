@@ -16,6 +16,17 @@ Graft receives signed (optional) webhooks on `/hook/…`, transforms JSON with G
 
 Use for any task in this repository: new features, bug fixes, refactors, dependency bumps, or release prep.
 
+## PUDO workflow (default operating mode)
+
+Use **PUDO: Plan -> Understand -> Develop -> Optimize** for meaningful work in this repo. See `.agents/workflows/pudo.md` for the full project workflow.
+
+1. **Plan** - define scope, success criteria, constraints, risks, and the implementation path before editing.
+2. **Understand** - inspect the affected code, dependencies, tests, and security surfaces; match existing patterns.
+3. **Develop** - implement in small steps, keep a checklist current, and add or update tests with behavior changes.
+4. **Optimize** - self-review, run the required checks, update docs when needed, and provide a concise walkthrough.
+
+For tiny or explicitly urgent fixes, compress the cycle, but do not skip understanding the touched code.
+
 ## Efficiency (how to work this codebase)
 
 1. **Scope** — Change only packages that the task requires (`internal/httpapi`, `internal/connectors`, `internal/storage`, `internal/router`, etc.). Avoid drive-by refactors.
@@ -54,5 +65,6 @@ Rules:
 |----------|------|
 | `.agents/docs/coding-standards.md` | Architecture, DI, concurrency |
 | `.agents/docs/security-guidelines.md` | Security requirements |
+| `.agents/workflows/pudo.md` | Plan -> Understand -> Develop -> Optimize workflow |
 | `.agents/workflows/test-and-lint.md` | Exact commands and CI notes |
 | `.agents/docs/FEATURE-TEST-MATRIX.md` | Required tests per area |
