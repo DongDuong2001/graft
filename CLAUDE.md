@@ -1,5 +1,16 @@
 # Graft Project - Claude Agent Guide
 
+## Default Workflow: PUDO
+
+Follow **PUDO: Plan -> Understand -> Develop -> Optimize** for meaningful tasks in this repository.
+
+1. **Plan** - clarify scope, success criteria, constraints, risks, and the implementation path before writing code.
+2. **Understand** - read the affected code and tests first; match Graft's existing patterns for handlers, services, storage, models, config, and security.
+3. **Develop** - implement step by step, keep a checklist current, and add or update tests with behavior changes.
+4. **Optimize** - self-review, run verification, update docs when needed, and finish with a concise walkthrough.
+
+Tiny fixes can use a compressed cycle, but do not skip reading the touched code. If implementation reveals a bad assumption, loop back to Plan or Understand. See `.agents/workflows/pudo.md` for the project-specific workflow.
+
 ## Project Overview
 
 **Graft** is a lightweight, self-hosted webhook-to-anything bridge written in Go. It receives incoming webhooks, validates signatures (HMAC-SHA256, Stripe v1), optionally transforms payloads using Go templates or JavaScript, and forwards them to configured destinations.
