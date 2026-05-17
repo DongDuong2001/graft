@@ -5,18 +5,22 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"log/slog"
+	"strings"
+	"sync"
 	"time"
 
-	"Graft/internal/connectors"
-	"Graft/internal/crypto"
-	"Graft/internal/forwarder"
-	"Graft/internal/metrics"
-	"Graft/internal/models"
-	"Graft/internal/storage"
-	"Graft/internal/transformer"
-	"Graft/internal/webhook"
-	"log/slog"
+	"github.com/DongDuong2001/graft/internal/connectors"
+	"github.com/DongDuong2001/graft/internal/crypto"
+	"github.com/DongDuong2001/graft/internal/forwarder"
+	"github.com/DongDuong2001/graft/internal/metrics"
+	"github.com/DongDuong2001/graft/internal/models"
+	"github.com/DongDuong2001/graft/internal/storage"
+	"github.com/DongDuong2001/graft/internal/transformer"
+	"github.com/DongDuong2001/graft/internal/webhook"
 )
+
+const maxFanOutConcurrency = 8
 
 // Engine defines the processing logic.
 type Engine struct {
@@ -162,88 +166,189 @@ func (e *Engine) processWithDelivery(ctx context.Context, rule *models.Rule, wh 
 	}
 
 	// --- Fan-out: for multiple destinations, send concurrently ---
-	var (
-		lastStatus   int
-		lastAttempts int
-		lastErr      error
-		totalStart   = time.Now()
-	)
-
-	for _, dest := range destinations {
-		// --- Check per-destination condition (optional gate) ---
-		if dest.Condition != "" {
-			cond := models.Condition{Field: dest.Condition, Operator: "exists"}
-			if pass, _ := EvaluateConditions(wh.Body, []models.Condition{cond}); !pass {
-				slog.Debug("Skipping destination by condition", "url", dest.URL, "condition", dest.Condition)
-				continue
-			}
-		}
-
-		// --- Route logic based on Destination Type ---
-		if dest.Type != "" && dest.Type != "http" {
-			// Native connector route
-			if native := e.registry.Get(dest.Type); native != nil {
-				status, nativeErr := native.Send(ctx, dest.URL, transformedBody)
-				lastStatus = status
-				lastAttempts = 1 // Single attempt for native without retry wrapper loop for now
-				if nativeErr != nil {
-					lastErr = nativeErr
-					slog.Error("Native fan-out failed", "type", dest.Type, "dest", dest.URL, "status", status, "error", nativeErr)
-				}
-				continue
-			}
-			slog.Warn("Unknown destination type, falling back to HTTP", "type", dest.Type)
-		}
-
-		// --- Standard HTTP Forwarder Route ---
-		// Build a temporary rule-like struct for the standard forwarder
-		destRule := &models.Rule{
-			DestinationURL:     dest.URL,
-			DestinationMethod:  dest.Method,
-			DestinationHeaders: dest.Headers,
-		}
-		if destRule.DestinationHeaders == nil {
-			destRule.DestinationHeaders = map[string]string{}
-		}
-
-		status, attempts, fwdErr := e.forwarder.Send(ctx, destRule, transformedBody)
-		lastStatus = status
-		lastAttempts = attempts
-		if fwdErr != nil {
-			lastErr = fwdErr
-			slog.Error("Fan-out delivery failed", "dest", dest.URL, "status", status, "error", fwdErr)
-		}
-	}
+	totalStart := time.Now()
+	results := e.deliverFanOut(ctx, destinations, wh.Body, transformedBody)
+	summary := summarizeFanOut(results)
 
 	// --- Step 5: Record delivery result ---
 	duration := time.Since(totalStart).Milliseconds()
-	d.Success = lastErr == nil
-	d.StatusCode = lastStatus
+	d.Success = summary.success
+	d.StatusCode = summary.statusCode
 	d.DurationMS = duration
-	d.RetryCount = lastAttempts - 1
-	if d.RetryCount < 0 {
-		d.RetryCount = 0
-	}
-	if lastErr != nil {
-		d.ErrorMsg = lastErr.Error()
-		// --- Mark as dead letter if forwarding failed after all retries ---
-		d.Status = models.StatusDeadLetter
-	} else {
-		d.Status = models.StatusDelivered
-	}
+	d.RetryCount = summary.retryCount
+	d.ErrorMsg = summary.errorMessage
+	d.Status = summary.status
 
 	if err := e.repo.SaveDelivery(ctx, *d); err != nil {
 		slog.Error("Failed to save delivery result", "id", d.ID, "error", err)
 	}
 
-	if lastErr != nil {
+	metrics.AddForwards(uint64(summary.attempted))
+	if summary.err != nil {
 		metrics.IncWebhooksFailed()
-		return d, lastErr
+		return d, summary.err
 	}
 
 	metrics.IncWebhooksSuccess()
-	metrics.AddForwards(uint64(len(destinations)))
 	return d, nil
+}
+
+type fanOutResult struct {
+	index      int
+	dest       models.Destination
+	statusCode int
+	attempts   int
+	skipped    bool
+	err        error
+}
+
+type fanOutSummary struct {
+	success      bool
+	status       string
+	statusCode   int
+	retryCount   int
+	attempted    int
+	errorMessage string
+	err          error
+}
+
+func (e *Engine) deliverFanOut(ctx context.Context, destinations []models.Destination, originalBody, transformedBody []byte) []fanOutResult {
+	results := make([]fanOutResult, len(destinations))
+	for i, dest := range destinations {
+		results[i] = fanOutResult{index: i, dest: dest}
+	}
+
+	limit := len(destinations)
+	if limit > maxFanOutConcurrency {
+		limit = maxFanOutConcurrency
+	}
+	if limit <= 0 {
+		return results
+	}
+
+	var wg sync.WaitGroup
+	sem := make(chan struct{}, limit)
+
+	for i, dest := range destinations {
+		if shouldSkipDestination(dest, originalBody) {
+			results[i].skipped = true
+			slog.Debug("Skipping destination by condition", "destination_index", i, "condition", dest.Condition)
+			continue
+		}
+
+		wg.Add(1)
+		go func(i int, dest models.Destination) {
+			defer wg.Done()
+			select {
+			case sem <- struct{}{}:
+				defer func() { <-sem }()
+			case <-ctx.Done():
+				results[i].err = ctx.Err()
+				return
+			}
+			results[i] = e.sendDestination(ctx, i, dest, transformedBody)
+		}(i, dest)
+	}
+
+	wg.Wait()
+	return results
+}
+
+func shouldSkipDestination(dest models.Destination, body []byte) bool {
+	if dest.Condition == "" {
+		return false
+	}
+	cond := models.Condition{Field: dest.Condition, Operator: "exists"}
+	pass, _ := EvaluateConditions(body, []models.Condition{cond})
+	return !pass
+}
+
+func (e *Engine) sendDestination(ctx context.Context, index int, dest models.Destination, transformedBody []byte) fanOutResult {
+	result := fanOutResult{index: index, dest: dest}
+
+	if dest.Type != "" && dest.Type != "http" {
+		if e.registry != nil {
+			if native := e.registry.Get(dest.Type); native != nil {
+				status, err := native.Send(ctx, dest.URL, transformedBody)
+				result.statusCode = status
+				result.attempts = 1
+				result.err = err
+				if err != nil {
+					slog.Error("Native fan-out failed", "destination_index", index, "type", dest.Type, "status", status, "error", err)
+				}
+				return result
+			}
+		}
+		slog.Warn("Unknown destination type, falling back to HTTP", "destination_index", index, "type", dest.Type)
+	}
+
+	destRule := &models.Rule{
+		DestinationURL:     dest.URL,
+		DestinationMethod:  dest.Method,
+		DestinationHeaders: dest.Headers,
+	}
+	if destRule.DestinationHeaders == nil {
+		destRule.DestinationHeaders = map[string]string{}
+	}
+
+	status, attempts, err := e.forwarder.Send(ctx, destRule, transformedBody)
+	result.statusCode = status
+	result.attempts = attempts
+	result.err = err
+	if err != nil {
+		slog.Error("Fan-out delivery failed", "destination_index", index, "status", status, "error", err)
+	}
+	return result
+}
+
+func summarizeFanOut(results []fanOutResult) fanOutSummary {
+	summary := fanOutSummary{
+		success: true,
+		status:  models.StatusDelivered,
+	}
+
+	var (
+		successes int
+		failures  []string
+	)
+
+	for _, result := range results {
+		if result.skipped {
+			continue
+		}
+
+		summary.attempted++
+		if result.statusCode != 0 {
+			summary.statusCode = result.statusCode
+		}
+		if result.attempts > 1 {
+			summary.retryCount += result.attempts - 1
+		}
+
+		if result.err != nil {
+			failures = append(failures, fmt.Sprintf("destination %d failed: %v", result.index+1, result.err))
+			continue
+		}
+		successes++
+	}
+
+	if summary.attempted == 0 {
+		summary.errorMessage = "skipped: no destination conditions matched"
+		return summary
+	}
+	if len(failures) == 0 {
+		return summary
+	}
+
+	summary.success = false
+	summary.errorMessage = strings.Join(failures, "; ")
+	summary.err = fmt.Errorf("fan-out delivery failed: %s", summary.errorMessage)
+	if successes > 0 {
+		summary.status = models.StatusPartial
+	} else {
+		summary.status = models.StatusDeadLetter
+	}
+	return summary
 }
 
 // GenerateID creates a new unique ID.
