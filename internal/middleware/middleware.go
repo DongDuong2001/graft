@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
-	"Graft/internal/security"
-	"Graft/internal/utils"
+	"github.com/DongDuong2001/graft/internal/security"
+	"github.com/DongDuong2001/graft/internal/utils"
 )
 
 // IPAllowlistMiddleware only allows requests from specific IP addresses.
