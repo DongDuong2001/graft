@@ -2,11 +2,12 @@ package engine
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"sync"
 	"time"
 
-	"Graft/internal/webhook"
+	"github.com/DongDuong2001/graft/internal/webhook"
 )
 
 // Task represents a webhook processing unit in the queue.
@@ -65,6 +66,7 @@ type WorkerPool struct {
 	count  int
 	wg     sync.WaitGroup
 	cancel context.CancelFunc
+	once   sync.Once
 }
 
 func NewWorkerPool(q Queue, eng *Engine, count int) *WorkerPool {
@@ -88,11 +90,34 @@ func (p *WorkerPool) Start(ctx context.Context) {
 }
 
 func (p *WorkerPool) Stop() {
-	if p.cancel != nil {
-		p.cancel()
+	if err := p.StopContext(context.Background()); err != nil {
+		slog.Error("Worker pool stop failed", "error", err)
 	}
-	p.wg.Wait()
-	slog.Info("Worker pool stopped")
+}
+
+func (p *WorkerPool) StopContext(ctx context.Context) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	p.once.Do(func() {
+		if p.cancel != nil {
+			p.cancel()
+		}
+	})
+
+	done := make(chan struct{})
+	go func() {
+		p.wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		slog.Info("Worker pool stopped")
+		return nil
+	case <-ctx.Done():
+		return fmt.Errorf("worker pool shutdown: %w", ctx.Err())
+	}
 }
 
 func (p *WorkerPool) worker(ctx context.Context, id int) {
@@ -108,7 +133,8 @@ func (p *WorkerPool) worker(ctx context.Context, id int) {
 		}
 
 		slog.Debug("Processing task", "worker_id", id, "delivery_id", task.DeliveryID)
-		err = p.engine.ProcessAsync(ctx, task.DeliveryID, task.Webhook)
+		processCtx := context.WithoutCancel(ctx)
+		err = p.engine.ProcessAsync(processCtx, task.DeliveryID, task.Webhook)
 		if err != nil {
 			slog.Error("Task processing failed", "worker_id", id, "delivery_id", task.DeliveryID, "error", err)
 		}
