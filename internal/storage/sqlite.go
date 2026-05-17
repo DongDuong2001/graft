@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"strings"
 
-	"Graft/internal/crypto"
-	"Graft/internal/models"
+	"github.com/DongDuong2001/graft/internal/crypto"
+	"github.com/DongDuong2001/graft/internal/models"
 )
 
 const destinationHeadersPrefix = "enc:v1:"
