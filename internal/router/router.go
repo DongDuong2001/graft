@@ -3,11 +3,11 @@ package router
 import (
 	"net/http"
 
-	"Graft/internal/config"
-	"Graft/internal/middleware"
-	"Graft/internal/ratelimit"
-	"Graft/internal/security"
-	"Graft/internal/ui"
+	"github.com/DongDuong2001/graft/internal/config"
+	"github.com/DongDuong2001/graft/internal/middleware"
+	"github.com/DongDuong2001/graft/internal/ratelimit"
+	"github.com/DongDuong2001/graft/internal/security"
+	"github.com/DongDuong2001/graft/internal/ui"
 )
 
 // SecurityConfig bundles all security-related middleware configuration.
