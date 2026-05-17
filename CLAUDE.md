@@ -16,7 +16,7 @@ Tiny fixes can use a compressed cycle, but do not skip reading the touched code.
 **Graft** is a lightweight, self-hosted webhook-to-anything bridge written in Go. It receives incoming webhooks, validates signatures (HMAC-SHA256, Stripe v1), optionally transforms payloads using Go templates or JavaScript, and forwards them to configured destinations.
 
 **Key Characteristics:**
-- Language: Go 1.26+
+- Language: Go 1.25+
 - Database: SQLite (with CGO)
 - Architecture: Queue-based async processing with worker pools
 - Security: AES-GCM encryption, signature verification, rate limiting, brute force protection
