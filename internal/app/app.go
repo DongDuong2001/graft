@@ -13,16 +13,16 @@ import (
 
 	_ "github.com/mattn/go-sqlite3"
 
-	"Graft/internal/admin"
-	"Graft/internal/config"
-	"Graft/internal/connectors"
-	"Graft/internal/engine"
-	"Graft/internal/forwarder"
-	"Graft/internal/httpapi"
-	"Graft/internal/observability"
-	"Graft/internal/router"
-	"Graft/internal/server"
-	"Graft/internal/storage"
+	"github.com/DongDuong2001/graft/internal/admin"
+	"github.com/DongDuong2001/graft/internal/config"
+	"github.com/DongDuong2001/graft/internal/connectors"
+	"github.com/DongDuong2001/graft/internal/engine"
+	"github.com/DongDuong2001/graft/internal/forwarder"
+	"github.com/DongDuong2001/graft/internal/httpapi"
+	"github.com/DongDuong2001/graft/internal/observability"
+	"github.com/DongDuong2001/graft/internal/router"
+	"github.com/DongDuong2001/graft/internal/server"
+	"github.com/DongDuong2001/graft/internal/storage"
 )
 
 // Run loads configuration, wires dependencies, and blocks serving HTTP.
@@ -87,7 +87,9 @@ func Run() error {
 	// Phase 1: Initialize Queue and Worker Pool
 	queue := engine.NewMemoryQueue(cfg.QueueSize)
 	workerPool := engine.NewWorkerPool(queue, eng, cfg.WorkerCount)
-	workerPool.Start(context.Background())
+	workerCtx, workerCancel := context.WithCancel(context.Background())
+	defer workerCancel()
+	workerPool.Start(workerCtx)
 
 	wh := httpapi.NewWebhookHandler(eng, queue)
 	adminH := httpapi.NewAdminHandler(admService, eng)
@@ -159,14 +161,22 @@ func Run() error {
 		Severity:  observability.SeverityInfo,
 	})
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer shutdownCancel()
 
-	if err := srv.Shutdown(ctx); err != nil {
-		return fmt.Errorf("server shutdown: %w", err)
+	serverErr := srv.Shutdown(shutdownCtx)
+
+	workerShutdownCtx, workerShutdownCancel := context.WithTimeout(context.Background(), cfg.ForwardTimeout+5*time.Second)
+	defer workerShutdownCancel()
+	workerErr := workerPool.StopContext(workerShutdownCtx)
+	workerCancel()
+
+	if serverErr != nil {
+		return fmt.Errorf("server shutdown: %w", serverErr)
 	}
-
-	workerPool.Stop()
+	if workerErr != nil {
+		return fmt.Errorf("worker shutdown: %w", workerErr)
+	}
 
 	slog.Info("Server exited gracefully")
 	return nil
