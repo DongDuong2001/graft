@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"Graft/internal/utils"
+	"github.com/DongDuong2001/graft/internal/utils"
 )
 
 // BruteForceProtector tracks failed authentication attempts per IP
