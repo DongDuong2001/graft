@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"Graft/internal/models"
-	"Graft/internal/observability"
+	"github.com/DongDuong2001/graft/internal/models"
+	"github.com/DongDuong2001/graft/internal/observability"
 )
 
 func TestHTTPForwarder_Send_Success(t *testing.T) {
