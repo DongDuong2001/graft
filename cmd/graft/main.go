@@ -5,8 +5,8 @@ import (
 	"log/slog"
 	"os"
 
-	"Graft/internal/app"
-	"Graft/internal/version"
+	"github.com/DongDuong2001/graft/internal/app"
+	"github.com/DongDuong2001/graft/internal/version"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/cobra/doc"
