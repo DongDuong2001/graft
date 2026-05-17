@@ -6,9 +6,9 @@ import (
 	"log/slog"
 	"net/http"
 
-	"Graft/internal/engine"
-	"Graft/internal/models"
-	"Graft/internal/webhook"
+	"github.com/DongDuong2001/graft/internal/engine"
+	"github.com/DongDuong2001/graft/internal/models"
+	"github.com/DongDuong2001/graft/internal/webhook"
 	"time"
 )
 
