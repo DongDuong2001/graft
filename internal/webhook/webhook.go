@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"Graft/internal/models"
+	"github.com/DongDuong2001/graft/internal/models"
 )
 
 // Webhook represents an incoming webhook request.
