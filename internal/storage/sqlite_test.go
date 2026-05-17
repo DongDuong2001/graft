@@ -9,7 +9,7 @@ import (
 
 	_ "github.com/mattn/go-sqlite3"
 
-	"Graft/internal/models"
+	"github.com/DongDuong2001/graft/internal/models"
 )
 
 const testMasterKey = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
