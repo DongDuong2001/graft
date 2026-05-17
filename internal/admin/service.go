@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"strings"
 
-	"Graft/internal/crypto"
-	"Graft/internal/models"
-	"Graft/internal/storage"
+	"github.com/DongDuong2001/graft/internal/crypto"
+	"github.com/DongDuong2001/graft/internal/models"
+	"github.com/DongDuong2001/graft/internal/storage"
 )
 
 // Service handles rule management.
