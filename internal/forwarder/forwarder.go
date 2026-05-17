@@ -3,8 +3,8 @@ package forwarder
 import (
 	"context"
 
-	"Graft/internal/connectors"
-	"Graft/internal/models"
+	"github.com/DongDuong2001/graft/internal/connectors"
+	"github.com/DongDuong2001/graft/internal/models"
 )
 
 // Forwarder defines the interface for sending webhooks to destinations.
