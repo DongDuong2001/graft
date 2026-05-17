@@ -91,7 +91,7 @@ type Delivery struct {
 	RuleID     string `json:"rule_id"`
 	CreatedAt  int64  `json:"created_at"` // Unix seconds
 	Success    bool   `json:"success"`
-	Status     string `json:"status"` // "pending", "processing", "delivered", "failed", "dead_letter"
+	Status     string `json:"status"` // "pending", "processing", "delivered", "partial_failed", "failed", "dead_letter"
 	StatusCode int    `json:"status_code"`
 	ErrorMsg   string `json:"error_message,omitempty"`
 	DurationMS int64  `json:"duration_ms"`
@@ -107,6 +107,7 @@ const (
 	StatusPending    = "pending"
 	StatusProcessing = "processing"
 	StatusDelivered  = "delivered"
+	StatusPartial    = "partial_failed"
 	StatusFailed     = "failed"
 	StatusDeadLetter = "dead_letter"
 )
