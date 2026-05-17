@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"Graft/internal/config"
+	"github.com/DongDuong2001/graft/internal/config"
 )
 
 // HTTPServer wraps net/http.Server with Graft defaults from config.
