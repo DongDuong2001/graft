@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"Graft/internal/utils"
+	"github.com/DongDuong2001/graft/internal/utils"
 )
 
 // TokenBucket implements a token bucket rate limiter per client IP.
