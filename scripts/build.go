@@ -25,7 +25,7 @@ func main() {
 		commit = strings.TrimSpace(string(out))
 	}
 
-	ldflags := fmt.Sprintf("-X 'Graft/internal/version.Version=%s' -X 'Graft/internal/version.Commit=%s' -X 'Graft/internal/version.BuildDate=%s'", version, commit, buildDate)
+	ldflags := fmt.Sprintf("-X 'github.com/DongDuong2001/graft/internal/version.Version=%s' -X 'github.com/DongDuong2001/graft/internal/version.Commit=%s' -X 'github.com/DongDuong2001/graft/internal/version.BuildDate=%s'", version, commit, buildDate)
 
 	targets := []struct {
 		GOOS   string
