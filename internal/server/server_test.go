@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"testing"
 
-	"Graft/internal/config"
+	"github.com/DongDuong2001/graft/internal/config"
 )
 
 func TestNewHTTPServer_Addr(t *testing.T) {
