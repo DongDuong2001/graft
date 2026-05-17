@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"Graft/internal/config"
+	"github.com/DongDuong2001/graft/internal/config"
 )
 
 func TestNewRootMux_Healthz(t *testing.T) {
