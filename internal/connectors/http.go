@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"Graft/internal/models"
-	"Graft/internal/observability"
+	"github.com/DongDuong2001/graft/internal/models"
+	"github.com/DongDuong2001/graft/internal/observability"
 )
 
 // HTTPConfig controls outbound HTTP delivery (retries and timeouts).
